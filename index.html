@@ -1522,6 +1522,50 @@ async function loadProducts() {
 }
 loadProducts();
 </script>
+<div id="danh-sach-sp" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; padding: 20px;">
+    </div>
 
+<script>
+    async function layHangTuPi() {
+        // Địa chỉ IP con Pi 5 của Thọ
+        const URL_POCKETBASE = 'http://192.168.1.2:8090/api/collections/sanpham/records';
+        
+        try {
+            const response = await fetch(URL_POCKETBASE);
+            const data = await response.json();
+            const khungChua = document.getElementById('danh-sach-sp');
+
+            if (data.items.length === 0) {
+                khungChua.innerHTML = "<p>Kho hàng trên Pi đang trống Thọ ơi!</p>";
+                return;
+            }
+
+            // Xóa sạch chỗ cũ để hiện hàng mới
+            khungChua.innerHTML = '';
+
+            data.items.forEach(sp => {
+                // Lấy cái ảnh đầu tiên trong 5 cái Thọ up
+                const linkAnh = `http://192.168.1.2:8090/api/files/sanpham/${sp.id}/${sp.anh[0]}`;
+                
+                khungChua.innerHTML += `
+                    <div style="width: 250px; border: 1px solid #eee; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 8px rgba(0,0,0,0.1); background: white; text-align: center; padding-bottom: 15px;">
+                        <a href="chitiet.html?id=${sp.id}" style="text-decoration: none; color: #333;">
+                            <img src="${linkAnh}" style="width: 100%; height: 180px; object-fit: cover;">
+                            <h3 style="margin: 10px; font-size: 1.2em;">${sp.ten}</h3>
+                            <p style="color: #6c3bff; font-weight: bold; font-size: 1.1em;">${sp.gia} VNĐ</p>
+                        </a>
+                        <button style="background: #6c3bff; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">Mua ngay</button>
+                    </div>
+                `;
+            });
+        } catch (err) {
+            console.error("Lỗi rồi:", err);
+            document.getElementById('danh-sach-sp').innerHTML = "<p>Chưa thấy con Pi 5 của Thọ đâu hết...</p>";
+        }
+    }
+
+    // Lệnh cho Robot chạy ngay lập tức
+    layHangTuPi();
+</script>
 </body>
 </html>
