@@ -1493,15 +1493,14 @@ async function loadProducts() {
         
         const API_URL = `${MY_PI_LINK}/api/collections/sanpham/records`;
         
-        try {
-            // Tui đã thêm headers để bỏ qua trang cảnh báo của Localtonet nè
+try {
             const response = await fetch(API_URL, {
                 headers: {
                     'localtonet-skip-warning': 'true'
                 }
             });
 
-            if (!response.ok) throw new Error('Không thể kết nối API');
+            if (!response.ok) throw new Error('Không thể kết nối API (404/500)');
             
             const data = await response.json();
             const container = document.getElementById('danh-sach-sp');
@@ -1509,13 +1508,12 @@ async function loadProducts() {
             if (!container) return;
             container.innerHTML = ''; 
 
-            if (data.items.length === 0) {
+            if (!data.items || data.items.length === 0) {
                 container.innerHTML = '<p style="text-align:center; width:100%;">Chưa có sản phẩm nào trong kho Thọ ơi!</p>';
                 return;
             }
 
             data.items.forEach(sp => {
-                // Kiểm tra ảnh chuẩn xác từ PocketBase
                 const anhUrl = sp.anh && sp.anh.length > 0 
                     ? `${MY_PI_LINK}/api/files/sanpham/${sp.id}/${sp.anh[0]}`
                     : 'https://via.placeholder.com/200';
@@ -1535,11 +1533,11 @@ async function loadProducts() {
         } catch (error) {
             console.error('Lỗi kết nối:', error);
             const container = document.getElementById('danh-sach-sp');
-            if (container) container.innerHTML = '<p style="text-align:center; width:100%;">⚠️ ko ket noi duoc</p>';
+            // Dòng này giúp Thọ "bắt bệnh" cực nhanh trên iPad nè
+            if (container) container.innerHTML = `<p style="text-align:center; width:100%; color: red;">⚠️ Lỗi: ${error.message} <br> Link đang gọi: ${MY_PI_LINK}</p>`;
         }
-    }
-    loadProducts();
-</script>
+    } // Đóng hàm loadProducts
+    loadProducts(); // Chạy hàm
 
-</body>
+</script> </body>
 </html>
