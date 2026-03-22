@@ -1,4 +1,23 @@
-// Trong hàm loadProductDetail() của file chitiet.html
+// Thọ thay 'https://xxx.trycloudflare.com' bằng link thật của Thọ nhé
+const CLOUD_LINK = 'https://speaker-coast-era-remarks.trycloudflare.com ';
+
+const imagesHTML = sp.anh.map(fileName => `
+    <img src="${CLOUD_LINK}/api/files/sanpham/${sp.id}/${fileName}" 
+         style="width: 18%; margin: 5px; cursor: pointer; border: 2px solid #eee; border-radius: 10px; transition: 0.3s;"
+         onmouseover="this.style.borderColor='#6c3bff'"
+         onmouseout="this.style.borderColor='#eee'"
+         onclick="document.getElementById('product-img').src=this.src">
+`).join('');
+
+// Dòng này để chèn đống ảnh đó vào trước bảng thông số
+const container = document.getElementById('specs-container');
+if (container) {
+    container.insertAdjacentHTML('beforebegin', `
+        <div style="text-align:center; margin: 20px 0; display: flex; justify-content: center; flex-wrap: wrap;">
+            ${imagesHTML}
+        </div>
+    `);
+}// Trong hàm loadProductDetail() của file chitiet.html
 const imagesHTML = sp.anh.map(fileName => `
     <img src="http://192.168.1.2:8090/api/files/sanpham/${sp.id}/${fileName}" 
          style="width: 20%; margin: 5px; cursor: pointer; border: 1px solid #ddd; border-radius: 8px;"
