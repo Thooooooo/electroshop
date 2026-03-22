@@ -1479,11 +1479,48 @@ document.addEventListener('click', e => {
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { closeModal(); closeUserDropdown(); }
 });
-
 // ===== INIT =====
-renderProducts();
+// Giữ lại các hàm cũ của Thọ nếu cần
+if (typeof renderProducts === 'function') renderProducts();
 updateBadge();
 renderNavUser();
+
+// --- ĐOẠN CODE "HÚT" DỮ LIỆU TỪ PI 5 ---
+async function loadProducts() {
+    const API_URL = 'http://192.168.1.2:8090/api/collections/sanpham/records';
+    try {
+        const response = await fetch(API_URL);
+        const data = await response.json();
+        const container = document.getElementById('danh-sach-sp');
+        
+        if (!container) return;
+        container.innerHTML = ''; // Dọn dẹp chỗ trống
+
+        data.items.forEach(sp => {
+            // Lấy ảnh đầu tiên trong danh sách 5 ảnh
+            const anhUrl = sp.anh && sp.anh.length > 0 
+                ? `http://192.168.1.2:8090/api/files/sanpham/${sp.id}/${sp.anh[0]}`
+                : 'https://via.placeholder.com/200'; // Ảnh tạm nếu quên up ảnh
+
+            container.innerHTML += `
+                <div class="product-card" style="border: 1px solid #ddd; padding: 15px; border-radius: 10px; margin: 10px; text-align: center; background: white;">
+                    <a href="chitiet.html?id=${sp.id}" style="text-decoration: none; color: black;">
+                        <img src="${anhUrl}" alt="${sp.ten}" style="width: 100%; max-width: 200px; border-radius: 8px; height: 150px; object-fit: cover;">
+                        <h3 style="margin: 10px 0; font-size: 1.1em;">${sp.ten}</h3>
+                        <p style="color: #6c3bff; font-weight: bold;">${sp.gia} VNĐ</p>
+                        <p style="font-size: 0.8em; color: #666; height: 40px; overflow: hidden;">${sp.mo_ta}</p>
+                    </a>
+                    <button style="background: #6c3bff; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; width: 100%; margin-top: 10px;">Thêm vào giỏ</button>
+                </div>
+            `;
+        });
+    } catch (error) {
+        console.error('Lỗi kết nối Pi:', error);
+        const container = document.getElementById('danh-sach-sp');
+        if (container) container.innerHTML = '<p style="text-align:center; width:100%;">Đang đợi tín hiệu từ Raspberry Pi của Thọ...</p>';
+    }
+}
+loadProducts();
 </script>
 
 </body>
