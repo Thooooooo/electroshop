@@ -1497,6 +1497,7 @@ try {
             const response = await fetch(API_URL, {
                 headers: {
                     'localtonet-skip-warning': 'true'
+                    'Accept': 'application/json' // Bảo PocketBase: "Tui chỉ lấy dữ liệu thôi"
                 }
             });
 
