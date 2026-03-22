@@ -1,0 +1,8 @@
+// Trong hàm loadProductDetail() của file chitiet.html
+const imagesHTML = sp.anh.map(fileName => `
+    <img src="http://192.168.1.2:8090/api/files/sanpham/${sp.id}/${fileName}" 
+         style="width: 20%; margin: 5px; cursor: pointer; border: 1px solid #ddd; border-radius: 8px;"
+         onclick="document.getElementById('product-img').src=this.src">
+`).join('');
+
+document.getElementById('specs-container').insertAdjacentHTML('beforebegin', `<div style="text-align:center">${imagesHTML}</div>`);
