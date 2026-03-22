@@ -1,4 +1,50 @@
+<script>
+    async function loadProductDetail() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const productId = urlParams.get('id');
+        // --- DÁN LINK CỦA THỌ VÀO ĐÂY ---
+        const CLOUD_LINK = 'https://s1fcyzf4ju.localto.net'; 
 
+        if (!productId) return;
+
+        try {
+            // Thêm headers để vượt cảnh báo Localtonet
+            const response = await fetch(`${CLOUD_LINK}/api/collections/sanpham/records/${productId}`, {
+                headers: {
+                    'localtonet-skip-warning': 'true'
+                }
+            });
+            
+            const sp = await response.json();
+
+            // Đổi tên và giá
+            document.getElementById('product-name').innerText = sp.ten;
+            document.getElementById('product-price').innerText = `${Number(sp.gia).toLocaleString('vi-VN')} VNĐ`;
+            document.getElementById('product-description').innerText = sp.mo_ta;
+
+            // Ảnh chính
+            const mainImg = sp.anh && sp.anh.length > 0 
+                ? `${CLOUD_LINK}/api/files/sanpham/${sp.id}/${sp.anh[0]}`
+                : 'https://via.placeholder.com/400';
+            document.getElementById('product-img').src = mainImg;
+
+            // Đổ 5 ảnh nhỏ (Gallary)
+            const galleryContainer = document.getElementById('product-gallery');
+            if (galleryContainer && sp.anh) {
+                galleryContainer.innerHTML = sp.anh.map(fileName => `
+                    <img src="${CLOUD_LINK}/api/files/sanpham/${sp.id}/${fileName}" 
+                         style="width: 18%; margin: 5px; cursor: pointer; border: 2px solid #eee; border-radius: 10px; transition: 0.3s;"
+                         onclick="document.getElementById('product-img').src=this.src"
+                         onmouseover="this.style.borderColor='#6c3bff'"
+                         onmouseout="this.style.borderColor='#eee'">
+                `).join('');
+            }
+        } catch (error) {
+            console.error('Lỗi rồi Thọ ơi:', error);
+        }
+    }
+    loadProductDetail();
+</script>
 const CLOUD_LINK = 'https://s1fcyzf4ju.localto.net';
 
 const imagesHTML = sp.anh.map(fileName => `
