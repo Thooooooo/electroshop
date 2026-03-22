@@ -1496,7 +1496,7 @@ async function loadProducts() {
 try {
             const response = await fetch(API_URL, {
                 headers: {
-                    'localtonet-skip-warning': 'true'
+                    'localtonet-skip-warning': 'true',
                     'Accept': 'application/json' // Bảo PocketBase: "Tui chỉ lấy dữ liệu thôi"
                 }
             });
@@ -1504,6 +1504,15 @@ try {
             if (!response.ok) throw new Error('Không thể kết nối API (404/500)');
             
             const data = await response.json();
+
+            console.log("Dữ liệu Pi gửi về:", data);
+            
+            // Dòng này để Thọ thấy tận mắt trên iPad nè:
+            if (data.items.length === 0) {
+                alert("Pi báo: Trong kho đang TRỐNG TRƠN Thọ ơi!");
+            } else {
+                alert("Pi báo: Đã thấy " + data.items.length + " sản phẩm!");
+            }
             const container = document.getElementById('danh-sach-sp');
             
             if (!container) return;
