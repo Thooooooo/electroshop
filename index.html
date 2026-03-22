@@ -1487,21 +1487,35 @@ renderNavUser();
 <div id="danh-sach-sp" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; padding: 20px;"></div>
 
 <script>
-    async function loadProducts() {
-        // --- CHỖ THỌ SẼ ĐỔI LINK CLOUDFLARE VÀO ĐÂY ---
+async function loadProducts() {
+        // --- CHỖ THỌ SẼ ĐỔI LINK LOCALTONET VÀO ĐÂY ---
         const MY_PI_LINK = 'https://s1fcyzf4ju.localto.net'; 
         
         const API_URL = `${MY_PI_LINK}/api/collections/sanpham/records`;
         
         try {
-            const response = await fetch(API_URL);
+            // Tui đã thêm headers để bỏ qua trang cảnh báo của Localtonet nè
+            const response = await fetch(API_URL, {
+                headers: {
+                    'localtonet-skip-warning': 'true'
+                }
+            });
+
+            if (!response.ok) throw new Error('Không thể kết nối API');
+            
             const data = await response.json();
             const container = document.getElementById('danh-sach-sp');
             
             if (!container) return;
             container.innerHTML = ''; 
 
+            if (data.items.length === 0) {
+                container.innerHTML = '<p style="text-align:center; width:100%;">Chưa có sản phẩm nào trong kho Thọ ơi!</p>';
+                return;
+            }
+
             data.items.forEach(sp => {
+                // Kiểm tra ảnh chuẩn xác từ PocketBase
                 const anhUrl = sp.anh && sp.anh.length > 0 
                     ? `${MY_PI_LINK}/api/files/sanpham/${sp.id}/${sp.anh[0]}`
                     : 'https://via.placeholder.com/200';
@@ -1511,7 +1525,7 @@ renderNavUser();
                         <a href="chitiet.html?id=${sp.id}" style="text-decoration: none; color: black;">
                             <img src="${anhUrl}" alt="${sp.ten}" style="width: 100%; border-radius: 8px; height: 180px; object-fit: cover;">
                             <h3 style="margin: 10px 0; font-size: 1.1em;">${sp.ten}</h3>
-                            <p style="color: #6c3bff; font-weight: bold;">${sp.gia} VNĐ</p>
+                            <p style="color: #6c3bff; font-weight: bold;">${Number(sp.gia).toLocaleString('vi-VN')} VNĐ</p>
                             <p style="font-size: 0.8em; color: #666; height: 40px; overflow: hidden;">${sp.mo_ta}</p>
                         </a>
                         <button style="background: #6c3bff; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; width: 100%; margin-top: 10px;">Thêm vào giỏ</button>
@@ -1521,7 +1535,7 @@ renderNavUser();
         } catch (error) {
             console.error('Lỗi kết nối:', error);
             const container = document.getElementById('danh-sach-sp');
-            if (container) container.innerHTML = '<p style="text-align:center; width:100%;">Đang kết nối đến Raspberry Pi của Thọ qua localtonet..</p>';
+            if (container) container.innerHTML = '<p style="text-align:center; width:100%;">⚠️ Không thể lấy dữ liệu từ Pi 5. Thọ kiểm tra lại Terminal nhé!</p>';
         }
     }
     loadProducts();
