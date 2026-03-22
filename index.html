@@ -1521,7 +1521,7 @@ renderNavUser();
         } catch (error) {
             console.error('Lỗi kết nối:', error);
             const container = document.getElementById('danh-sach-sp');
-            if (container) container.innerHTML = '<p style="text-align:center; width:100%;">Đang kết nối đến Raspberry Pi của Thọ qua Cloudflare...</p>';
+            if (container) container.innerHTML = '<p style="text-align:center; width:100%;">Đang kết nối đến Raspberry Pi của Thọ qua localtonet..</p>';
         }
     }
     loadProducts();
