@@ -1487,39 +1487,24 @@ renderNavUser();
 <div id="danh-sach-sp" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; padding: 20px;"></div>
 
 <script>
-async function loadProducts() {
-        // --- CHỖ THỌ SẼ ĐỔI LINK LOCALTONET VÀO ĐÂY ---
-        const MY_PI_LINK = 'https://s1fcyzf4ju.localto.net'; 
-        
+    async function loadProducts() {
+        // Link Cloudflare xịn sò của Thọ đây
+        const MY_PI_LINK = 'https://pros-sega-yukon-raised.trycloudflare.com'; 
         const API_URL = `${MY_PI_LINK}/api/collections/sanpham/records`;
-        
-try {
-            const response = await fetch(API_URL, {
-                headers: {
-                    'localtonet-skip-warning': 'true',
-                    'Accept': 'application/json' // Bảo PocketBase: "Tui chỉ lấy dữ liệu thôi"
-                }
-            });
 
-            if (!response.ok) throw new Error('Không thể kết nối API (404/500)');
+        try {
+            // Lệnh gọi API giờ cực kỳ đơn giản, không cần headers gì hết
+            const response = await fetch(API_URL);
+
+            if (!response.ok) throw new Error('Không thể kết nối API từ Pi 5');
             
             const data = await response.json();
-
-            console.log("Dữ liệu Pi gửi về:", data);
-            
-            // Dòng này để Thọ thấy tận mắt trên iPad nè:
-            if (data.items.length === 0) {
-                alert("Pi báo: Trong kho đang TRỐNG TRƠN Thọ ơi!");
-            } else {
-                alert("Pi báo: Đã thấy " + data.items.length + " sản phẩm!");
-            }
             const container = document.getElementById('danh-sach-sp');
-            
             if (!container) return;
             container.innerHTML = ''; 
 
             if (!data.items || data.items.length === 0) {
-                container.innerHTML = '<p style="text-align:center; width:100%;">Chưa có sản phẩm nào trong kho Thọ ơi!</p>';
+                container.innerHTML = '<p style="text-align:center; width:100%;">Kho đang trống Thọ ơi!</p>';
                 return;
             }
 
@@ -1534,7 +1519,6 @@ try {
                             <img src="${anhUrl}" alt="${sp.ten}" style="width: 100%; border-radius: 8px; height: 180px; object-fit: cover;">
                             <h3 style="margin: 10px 0; font-size: 1.1em;">${sp.ten}</h3>
                             <p style="color: #6c3bff; font-weight: bold;">${Number(sp.gia).toLocaleString('vi-VN')} VNĐ</p>
-                            <p style="font-size: 0.8em; color: #666; height: 40px; overflow: hidden;">${sp.mo_ta}</p>
                         </a>
                         <button style="background: #6c3bff; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; width: 100%; margin-top: 10px;">Thêm vào giỏ</button>
                     </div>
@@ -1543,11 +1527,10 @@ try {
         } catch (error) {
             console.error('Lỗi kết nối:', error);
             const container = document.getElementById('danh-sach-sp');
-            // Dòng này giúp Thọ "bắt bệnh" cực nhanh trên iPad nè
-            if (container) container.innerHTML = `<p style="text-align:center; width:100%; color: red;">⚠️ Lỗi: ${error.message} <br> Link đang gọi: ${MY_PI_LINK}</p>`;
+            if (container) container.innerHTML = `<p style="text-align:center; width:100%; color: red;">⚠️ Lỗi: ${error.message}</p>`;
         }
-    } // Đóng hàm loadProducts
-    loadProducts(); // Chạy hàm
-
+    } 
+    loadProducts(); 
+</script>
 </script> </body>
 </html>
