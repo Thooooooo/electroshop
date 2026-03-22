@@ -1478,94 +1478,54 @@ document.addEventListener('click', e => {
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { closeModal(); closeUserDropdown(); }
-});
-// ===== INIT =====
-// Giữ lại các hàm cũ của Thọ nếu cần
+});// ===== INIT =====
 if (typeof renderProducts === 'function') renderProducts();
 updateBadge();
 renderNavUser();
-
-// --- ĐOẠN CODE "HÚT" DỮ LIỆU TỪ PI 5 ---
-async function loadProducts() {
-    const API_URL = 'http://192.168.1.2:8090/api/collections/sanpham/records';
-    try {
-        const response = await fetch(API_URL);
-        const data = await response.json();
-        const container = document.getElementById('danh-sach-sp');
-        
-        if (!container) return;
-        container.innerHTML = ''; // Dọn dẹp chỗ trống
-
-        data.items.forEach(sp => {
-            // Lấy ảnh đầu tiên trong danh sách 5 ảnh
-            const anhUrl = sp.anh && sp.anh.length > 0 
-                ? `http://192.168.1.2:8090/api/files/sanpham/${sp.id}/${sp.anh[0]}`
-                : 'https://via.placeholder.com/200'; // Ảnh tạm nếu quên up ảnh
-
-            container.innerHTML += `
-                <div class="product-card" style="border: 1px solid #ddd; padding: 15px; border-radius: 10px; margin: 10px; text-align: center; background: white;">
-                    <a href="chitiet.html?id=${sp.id}" style="text-decoration: none; color: black;">
-                        <img src="${anhUrl}" alt="${sp.ten}" style="width: 100%; max-width: 200px; border-radius: 8px; height: 150px; object-fit: cover;">
-                        <h3 style="margin: 10px 0; font-size: 1.1em;">${sp.ten}</h3>
-                        <p style="color: #6c3bff; font-weight: bold;">${sp.gia} VNĐ</p>
-                        <p style="font-size: 0.8em; color: #666; height: 40px; overflow: hidden;">${sp.mo_ta}</p>
-                    </a>
-                    <button style="background: #6c3bff; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; width: 100%; margin-top: 10px;">Thêm vào giỏ</button>
-                </div>
-            `;
-        });
-    } catch (error) {
-        console.error('Lỗi kết nối Pi:', error);
-        const container = document.getElementById('danh-sach-sp');
-        if (container) container.innerHTML = '<p style="text-align:center; width:100%;">Đang đợi tín hiệu từ Raspberry Pi của Thọ...</p>';
-    }
-}
-loadProducts();
 </script>
-<div id="danh-sach-sp" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; padding: 20px;">
-    </div>
+
+<div id="danh-sach-sp" style="display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; padding: 20px;"></div>
 
 <script>
-    async function layHangTuPi() {
-        // Địa chỉ IP con Pi 5 của Thọ
-        const URL_POCKETBASE = 'http://192.168.1.2:8090/api/collections/sanpham/records';
+    async function loadProducts() {
+        // --- CHỖ THỌ SẼ ĐỔI LINK CLOUDFLARE VÀO ĐÂY ---
+        const MY_PI_LINK = 'https://speaker-coast-era-remarks.trycloudflare.com.'; 
+        
+        const API_URL = `${MY_PI_LINK}/api/collections/sanpham/records`;
         
         try {
-            const response = await fetch(URL_POCKETBASE);
+            const response = await fetch(API_URL);
             const data = await response.json();
-            const khungChua = document.getElementById('danh-sach-sp');
-
-            if (data.items.length === 0) {
-                khungChua.innerHTML = "<p>Kho hàng trên Pi đang trống Thọ ơi!</p>";
-                return;
-            }
-
-            // Xóa sạch chỗ cũ để hiện hàng mới
-            khungChua.innerHTML = '';
+            const container = document.getElementById('danh-sach-sp');
+            
+            if (!container) return;
+            container.innerHTML = ''; 
 
             data.items.forEach(sp => {
-                // Lấy cái ảnh đầu tiên trong 5 cái Thọ up
-                const linkAnh = `http://192.168.1.2:8090/api/files/sanpham/${sp.id}/${sp.anh[0]}`;
-                
-                khungChua.innerHTML += `
-                    <div style="width: 250px; border: 1px solid #eee; border-radius: 15px; overflow: hidden; box-shadow: 0 4px 8px rgba(0,0,0,0.1); background: white; text-align: center; padding-bottom: 15px;">
-                        <a href="chitiet.html?id=${sp.id}" style="text-decoration: none; color: #333;">
-                            <img src="${linkAnh}" style="width: 100%; height: 180px; object-fit: cover;">
-                            <h3 style="margin: 10px; font-size: 1.2em;">${sp.ten}</h3>
-                            <p style="color: #6c3bff; font-weight: bold; font-size: 1.1em;">${sp.gia} VNĐ</p>
+                const anhUrl = sp.anh && sp.anh.length > 0 
+                    ? `${MY_PI_LINK}/api/files/sanpham/${sp.id}/${sp.anh[0]}`
+                    : 'https://via.placeholder.com/200';
+
+                container.innerHTML += `
+                    <div class="product-card" style="border: 1px solid #ddd; padding: 15px; border-radius: 10px; margin: 10px; text-align: center; background: white; width: 250px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);">
+                        <a href="chitiet.html?id=${sp.id}" style="text-decoration: none; color: black;">
+                            <img src="${anhUrl}" alt="${sp.ten}" style="width: 100%; border-radius: 8px; height: 180px; object-fit: cover;">
+                            <h3 style="margin: 10px 0; font-size: 1.1em;">${sp.ten}</h3>
+                            <p style="color: #6c3bff; font-weight: bold;">${sp.gia} VNĐ</p>
+                            <p style="font-size: 0.8em; color: #666; height: 40px; overflow: hidden;">${sp.mo_ta}</p>
                         </a>
-                        <button style="background: #6c3bff; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">Mua ngay</button>
+                        <button style="background: #6c3bff; color: white; border: none; padding: 10px; border-radius: 5px; cursor: pointer; width: 100%; margin-top: 10px;">Thêm vào giỏ</button>
                     </div>
                 `;
             });
-        } catch (err) {
-            console.error("Lỗi rồi:", err);
-            document.getElementById('danh-sach-sp').innerHTML = "<p>Chưa thấy con Pi 5 của Thọ đâu hết...</p>";
+        } catch (error) {
+            console.error('Lỗi kết nối:', error);
+            const container = document.getElementById('danh-sach-sp');
+            if (container) container.innerHTML = '<p style="text-align:center; width:100%;">Đang kết nối đến Raspberry Pi của Thọ qua Cloudflare...</p>';
         }
     }
-
-    // Lệnh cho Robot chạy ngay lập tức
-    layHangTuPi();
+    loadProducts();
 </script>
+
 </body>
 </html>
