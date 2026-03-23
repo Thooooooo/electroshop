@@ -1,26 +1,19 @@
 async function renderProductDetail() {
-    if (!cloudLink) return;
-    const response = await fetch(`${cloudLink}/api/collections/sanpham/records/${id}`);
-    const product = await response.json();
+    if (!cloudLink || cloudLink === '#') return;
     
-    const productName = document.getElementById('productName');
-    const productPrice = document.getElementById('productPrice');
-    const productDescription = document.getElementById('productDescription');
-    const productGallery = document.getElementById('productGallery');
-    const cfCard = document.getElementById('cf-card');
+    const productId = getProductId(); // Lấy ID từ URL
+    const res = await fetch(`${cloudLink}/api/collections/sanpham/records/${productId}`);
+    const product = await res.json();
     
-    productName.innerText = product.ten;
-    productPrice.innerText = new Intl.NumberFormat('de-DE').format(product.gia) + ' VNĐ';
-    productDescription.innerText = product.mo_ta;
+    // Đổ data vào giao diện cực đẹp của ông
+    document.getElementById('productName').textContent = product.ten;
+    document.getElementById('productPrice').textContent = parseInt(product.gia).toLocaleString('vi-VN') + '₫';
+    document.getElementById('productDesc').textContent = product.mo_ta;
     
-    // Clear existing images
-    productGallery.innerHTML = '';
-    product.anh.forEach(image => {
-        const imgElement = document.createElement('img');
-        imgElement.src = image;
-        imgElement.alt = 'Product Image';
-        productGallery.appendChild(imgElement);
-    });
-    
-    cfCard.style.display = 'none'; // Hide cf-card
+    // Gallery ảnh động (con bot lúc nãy nó làm sai chỗ này, ông dùng cái này mới đúng)
+    const mainImgEl = document.getElementById('mainImg');
+    if (product.anh && product.anh.length > 0) {
+        const imgUrl = `${cloudLink}/api/files/sanpham/${product.id}/${product.anh[0]}`;
+        mainImgEl.innerHTML = `<img src="${imgUrl}" style="width:100%; height:100%; object-fit:cover;" />`;
+    }
 }
