@@ -196,7 +196,7 @@
     /* ===== PRODUCTS GRID ===== */
     .products-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+      grid-template-columns: repeat(4, 1fr);
       gap: 24px;
     }
     .product-card {
@@ -263,9 +263,119 @@
     }
 
     /* ===== RESPONSIVE ===== */
-    @media (max-width: 640px) {
+    @media (max-width: 1024px) {
+      .products-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 768px) {
       .nav { display: none; }
+      .btn-hamburger { display: flex; }
+      .products-grid { grid-template-columns: repeat(2, 1fr); }
       .hero { padding: 60px 16px; }
+      .features-strip { gap: 12px; }
+      .feature-item { min-width: 140px; padding: 18px 14px; }
+    }
+    @media (max-width: 480px) {
+      .hero h1 { font-size: 1.8rem; }
+      main { padding: 40px 16px; }
+    }
+    @media (max-width: 320px) {
+      .products-grid { grid-template-columns: 1fr; }
+      .header-inner { padding: 0 12px; }
+    }
+
+    /* ===== HAMBURGER / MOBILE NAV ===== */
+    .btn-hamburger {
+      display: none;
+      width: 40px; height: 40px; border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      align-items: center; justify-content: center;
+      cursor: pointer; font-size: 1.3rem;
+      color: var(--text); transition: all var(--transition);
+    }
+    .btn-hamburger:hover { background: var(--bg); transform: scale(1.08); }
+    .mobile-nav {
+      display: none;
+      position: fixed; top: 64px; left: 0; right: 0; z-index: 99;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      padding: 16px 20px; flex-direction: column; gap: 4px;
+      box-shadow: 0 8px 24px rgba(0,0,0,.15);
+      animation: slideDown .2s ease;
+    }
+    .mobile-nav.open { display: flex; }
+    .mobile-nav a {
+      font-weight: 600; color: var(--text-muted); font-size: 1rem;
+      padding: 12px 0; border-bottom: 1px solid var(--border);
+      transition: color var(--transition); min-height: 44px;
+      display: flex; align-items: center;
+    }
+    .mobile-nav a:last-child { border-bottom: none; }
+    .mobile-nav a:hover, .mobile-nav a.active { color: var(--grad-start); }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ===== TOAST NOTIFICATION ===== */
+    .toast-container {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+      z-index: 9998; display: flex; flex-direction: column; align-items: center; gap: 8px;
+      pointer-events: none;
+    }
+    .toast {
+      padding: 12px 24px; border-radius: 99px;
+      font-size: .88rem; font-weight: 600;
+      box-shadow: 0 4px 20px rgba(0,0,0,.3);
+      animation: toastIn .3s ease, toastOut .3s ease 2.7s forwards;
+      white-space: nowrap;
+    }
+    .toast.error   { background: #450a0a; color: #fca5a5; }
+    .toast.success { background: #052e16; color: #86efac; }
+    .toast.info    { background: #1e293b; color: #93c5fd; }
+    @keyframes toastIn  { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes toastOut { from { opacity: 1; } to { opacity: 0; } }
+
+    /* ===== DEBUG PANEL ===== */
+    #debugPanel {
+      position: fixed; top: 70px; right: 16px; z-index: 9997;
+      background: rgba(15,23,42,.93); color: #4ade80;
+      font-family: 'Courier New', monospace; font-size: .72rem;
+      border-radius: 12px; min-width: 260px; max-width: 300px;
+      box-shadow: 0 4px 24px rgba(0,0,0,.5); backdrop-filter: blur(8px);
+      border: 1px solid rgba(255,255,255,.12);
+      transition: all var(--transition);
+    }
+    #debugPanel.collapsed #debugPanelBody { display: none; }
+    #debugPanelHeader {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 12px; cursor: pointer; user-select: none;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    #debugPanelTitle { font-weight: 700; color: #a5f3fc; font-size: .75rem; }
+    #debugPanelToggle { color: #64748b; font-size: .85rem; }
+    #debugPanelBody { padding: 10px 12px; }
+    .debug-metrics { display: flex; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+    .debug-metric {
+      background: rgba(255,255,255,.07); padding: 3px 8px; border-radius: 6px;
+      display: flex; gap: 4px; align-items: center;
+    }
+    .debug-label { color: #94a3b8; }
+    .debug-val   { color: #4ade80; font-weight: 700; }
+    #debugLogs { max-height: 180px; overflow-y: auto; margin-top: 8px; }
+    .debug-log-entry { margin-bottom: 3px; line-height: 1.4; word-break: break-all; }
+    .debug-log-entry.error { color: #f87171; }
+    .debug-log-entry.warn  { color: #fbbf24; }
+    .debug-log-entry.info  { color: #60a5fa; }
+    #debugClear {
+      width: 100%; padding: 5px; margin-top: 8px;
+      background: rgba(255,255,255,.08); border: none; border-radius: 6px;
+      color: #94a3b8; cursor: pointer; font-size: .7rem; font-family: inherit;
+    }
+    #debugClear:hover { background: rgba(255,255,255,.15); color: #f1f5f9; }
+
+    /* ===== TOUCH-FRIENDLY BUTTONS ===== */
+    .btn-detail, .btn-copy, .btn-open, .btn-primary, .btn-outline, .btn-icon {
+      min-height: 44px;
     }
   </style>
 </head>
@@ -284,9 +394,18 @@
     <div class="header-actions">
       <button class="btn-icon" id="themeToggle" title="Đổi giao diện">🌙</button>
       <button class="btn-icon" title="Giỏ hàng">🛒</button>
+      <button class="btn-hamburger" id="hamburgerBtn" title="Menu" aria-label="Menu">☰</button>
     </div>
   </div>
 </header>
+
+<!-- ===== MOBILE NAV ===== -->
+<nav id="mobileNav" class="mobile-nav">
+  <a href="index.html" class="active">🏠 Trang chủ</a>
+  <a href="chitiet.html">📋 Chi tiết</a>
+  <a href="#">🛍️ Sản phẩm</a>
+  <a href="#">📞 Liên hệ</a>
+</nav>
 
 <!-- ===== STATUS BANNER ===== -->
 <div id="statusBanner"></div>
@@ -379,26 +498,87 @@
     { id: 8, icon: '🔋', name: 'iPad Pro M4', desc: 'M4 chip, OLED 11", WiFi 6E', price: '24.990.000₫' },
   ];
 
+  /* ---- Performance Tracking (FPS / Memory / Load time) ---- */
+  let _fps = 0, _frameCount = 0, _lastFpsTime = performance.now();
+  (function trackFps() {
+    _frameCount++;
+    const now = performance.now();
+    if (now - _lastFpsTime >= 1000) {
+      _fps = Math.round(_frameCount * 1000 / (now - _lastFpsTime));
+      _frameCount = 0; _lastFpsTime = now;
+      _updateDebugMetrics();
+    }
+    requestAnimationFrame(trackFps);
+  })();
+
+  function _updateDebugMetrics() {
+    const fpsEl  = document.getElementById('dbFps');
+    const memEl  = document.getElementById('dbMem');
+    const ltEl   = document.getElementById('dbLoadTime');
+    if (fpsEl) fpsEl.textContent = _fps;
+    if (memEl && performance.memory)
+      memEl.textContent = Math.round(performance.memory.usedJSHeapSize / 1048576) + 'MB';
+    if (ltEl) ltEl.textContent = Math.round(performance.now()) + 'ms';
+  }
+
+  /* ---- Debug Logger (localStorage, max 50 entries) ---- */
+  const MAX_LOG_ENTRIES = 50;
+  function dbLog(level, msg, detail) {
+    try {
+      const ts   = new Date().toLocaleTimeString('vi-VN');
+      const logs = JSON.parse(localStorage.getItem('es-debug-logs') || '[]');
+      logs.unshift({ ts, level, msg, detail: detail ? String(detail).slice(0, 500) : '' });
+      if (logs.length > MAX_LOG_ENTRIES) logs.length = MAX_LOG_ENTRIES;
+      localStorage.setItem('es-debug-logs', JSON.stringify(logs));
+    } catch(e) {}
+    const container = document.getElementById('debugLogs');
+    if (!container) return;
+    const div = document.createElement('div');
+    div.className = 'debug-log-entry ' + level;
+    div.textContent = '[' + new Date().toLocaleTimeString('vi-VN') + '] ' + msg;
+    if (detail) div.title = String(detail);
+    container.insertBefore(div, container.firstChild);
+    while (container.children.length > 25) container.removeChild(container.lastChild);
+  }
+
+  /* ---- Toast Notification ---- */
+  function showToast(msg, type) {
+    type = type || 'info';
+    const c = document.getElementById('toastContainer');
+    if (!c) return;
+    const t = document.createElement('div');
+    t.className = 'toast ' + type;
+    t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(function() { try { c.removeChild(t); } catch(e) {} }, 3200);
+  }
+
   /* ---- Render Products ---- */
   function renderProducts() {
-    const grid = document.getElementById('productsGrid');
-    grid.innerHTML = PRODUCTS.map(p => `
-      <div class="product-card" onclick="goDetail(${p.id})">
-        <div class="product-img">${p.icon}</div>
-        <div class="product-info">
-          <div class="product-name">${p.name}</div>
-          <div class="product-desc">${p.desc}</div>
-          <div class="product-footer">
-            <div class="product-price">${p.price}</div>
-            <button class="btn-detail" onclick="event.stopPropagation();goDetail(${p.id})">Chi tiết →</button>
+    try {
+      const grid = document.getElementById('productsGrid');
+      grid.innerHTML = PRODUCTS.map(function(p) { return `
+        <div class="product-card" onclick="goDetail(${p.id})" onkeydown="if(event.key==='Enter'||event.key===' ')goDetail(${p.id})" tabindex="0" role="button" aria-label="${p.name}">
+          <div class="product-img">${p.icon}</div>
+          <div class="product-info">
+            <div class="product-name">${p.name}</div>
+            <div class="product-desc">${p.desc}</div>
+            <div class="product-footer">
+              <div class="product-price">${p.price}</div>
+              <button class="btn-detail" onclick="event.stopPropagation();goDetail(${p.id})">Chi tiết →</button>
+            </div>
           </div>
         </div>
-      </div>
-    `).join('');
+      `; }).join('');
+      dbLog('info', 'Products rendered (' + PRODUCTS.length + ' items)');
+    } catch(err) {
+      dbLog('error', 'renderProducts failed', err.message + '\n' + err.stack);
+      showToast('⚠️ Lỗi render sản phẩm', 'error');
+    }
   }
 
   function goDetail(id) {
-    window.location.href = `chitiet.html?id=${id}`;
+    window.location.href = 'chitiet.html?id=' + id;
   }
 
   function scrollToProducts() {
@@ -414,47 +594,87 @@
     const banner = document.getElementById('statusBanner');
     banner.className = type;
     banner.textContent = msg;
-    if (type === 'success') setTimeout(() => { banner.style.display = 'none'; }, 4000);
+    if (type === 'success') setTimeout(function() { banner.style.display = 'none'; }, 4000);
   }
 
   function updateMeta(msg) {
     document.getElementById('cfMeta').innerHTML =
-      `<span class="cf-dot"></span>${msg}`;
+      '<span class="cf-dot"></span>' + msg;
+  }
+
+  async function _fetchApiJs(url) {
+    const controller = new AbortController();
+    const tid = setTimeout(function() { controller.abort(); }, 5000);
+    try {
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(tid);
+      if (!res.ok) return null;
+      const text = await res.text();
+      const match = text.match(/const\s+CLOUD_LINK\s*=\s*['"`]([^'"`]+)['"`]/);
+      return match ? match[1].trim() : null;
+    } catch(e) {
+      clearTimeout(tid);
+      return null;
+    }
   }
 
   async function loadCloudflareLink() {
     setStatus('loading', '⏳ Đang tải link Cloudflare từ api.js…');
+    dbLog('info', 'Loading Cloudflare link, attempt ' + (retryCount + 1));
     try {
-      // Cache-busting to avoid stale api.js
-      const url = `api.js?_t=${Date.now()}`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const ts = Date.now();
+      const paths = [
+        'api.js?_t=' + ts,
+        '/api.js?_t=' + ts,
+        '/var/www/html/api.js?_t=' + ts,
+      ];
+      let found = null;
+      for (const path of paths) {
+        found = await _fetchApiJs(path);
+        if (found) { dbLog('info', 'CLOUD_LINK found at ' + path); break; }
+      }
 
-      const text = await res.text();
-      const match = text.match(/const\s+CLOUD_LINK\s*=\s*['"`]([^'"`]+)['"`]/);
-      if (!match) throw new Error('CLOUD_LINK not found in api.js');
+      if (found) {
+        cloudLink = found;
+        document.getElementById('cfLinkInput').value = cloudLink;
+        updateMeta('Cập nhật lúc ' + new Date().toLocaleTimeString('vi-VN') + ' · Tự động làm mới sau 30s');
+        setStatus('success', '✅ Đã tải link Cloudflare thành công!');
+        retryCount = 0;
+        dbLog('info', 'Cloudflare link loaded', cloudLink);
+        console.log('[ElectroShop] Cloudflare link loaded:', cloudLink);
+        return;
+      }
 
-      cloudLink = match[1].trim();
-      document.getElementById('cfLinkInput').value = cloudLink;
-      updateMeta(`Cập nhật lúc ${new Date().toLocaleTimeString('vi-VN')} · Tự động làm mới sau 30s`);
-      setStatus('success', '✅ Đã tải link Cloudflare thành công!');
-      retryCount = 0;
-      console.log('[ElectroShop] Cloudflare link loaded:', cloudLink);
-    } catch (err) {
+      throw new Error('CLOUD_LINK not found in any api.js path');
+    } catch(err) {
       retryCount++;
+      dbLog('error', 'loadCloudflareLink failed', err.message);
       console.error('[ElectroShop] Error loading api.js:', err.message);
 
       if (retryCount <= MAX_RETRY) {
         const delay = retryCount * 3;
-        setStatus('error', `⚠️ Không tải được api.js (lần ${retryCount}/${MAX_RETRY}). Thử lại sau ${delay}s…`);
-        updateMeta(`Thử lại lần ${retryCount}/${MAX_RETRY}…`);
+        setStatus('error', '⚠️ Không tải được api.js (lần ' + retryCount + '/' + MAX_RETRY + '). Thử lại sau ' + delay + 's…');
+        updateMeta('Thử lại lần ' + retryCount + '/' + MAX_RETRY + '…');
+        showToast('⚠️ Lần ' + retryCount + ': Không tải được api.js', 'error');
         setTimeout(loadCloudflareLink, delay * 1000);
       } else {
-        // Fallback: use placeholder
+        // Fallback: try localhost:8080
+        const fallback = await _fetchApiJs('http://localhost:8080/api.js?_t=' + Date.now());
+        if (fallback) {
+          cloudLink = fallback;
+          document.getElementById('cfLinkInput').value = cloudLink;
+          updateMeta('Fallback localhost:8080 · ' + new Date().toLocaleTimeString('vi-VN'));
+          setStatus('success', '✅ Đã tải từ localhost:8080!');
+          retryCount = 0;
+          dbLog('info', 'Cloudflare link loaded from fallback localhost:8080', cloudLink);
+          return;
+        }
         cloudLink = '#';
         document.getElementById('cfLinkInput').value = 'api.js chưa có – hãy chạy script Cloudflare';
         updateMeta('⚠️ Không tìm thấy api.js – dùng link thay thế');
         setStatus('error', '❌ Không tải được api.js sau 3 lần thử. Kiểm tra lại script Cloudflare!');
+        showToast('❌ Không tải được api.js', 'error');
+        dbLog('error', 'All fallbacks exhausted – placeholder mode');
         console.error('[ElectroShop] Fallback mode – api.js unavailable');
       }
     }
@@ -463,12 +683,14 @@
   /* ---- Copy / Open ---- */
   function copyLink() {
     if (!cloudLink || cloudLink === '#') {
-      alert('Chưa có link Cloudflare để sao chép!'); return;
+      showToast('Chưa có link Cloudflare để sao chép!', 'error'); return;
     }
     navigator.clipboard.writeText(cloudLink)
-      .then(() => setStatus('success', '📋 Đã sao chép link vào clipboard!'))
-      .catch(() => {
-        // Fallback for older browsers
+      .then(function() {
+        setStatus('success', '📋 Đã sao chép link vào clipboard!');
+        showToast('📋 Đã sao chép!', 'success');
+      })
+      .catch(function() {
         const el = document.getElementById('cfLinkInput');
         el.removeAttribute('readonly'); el.select();
         document.execCommand('copy');
@@ -479,7 +701,7 @@
 
   function openLink() {
     if (!cloudLink || cloudLink === '#') {
-      alert('Chưa có link Cloudflare!'); return;
+      showToast('Chưa có link Cloudflare!', 'error'); return;
     }
     window.open(cloudLink, '_blank', 'noopener,noreferrer');
   }
@@ -492,12 +714,11 @@
     localStorage.setItem('es-theme', theme);
   }
 
-  themeToggle.addEventListener('click', () => {
+  themeToggle.addEventListener('click', function() {
     const current = document.documentElement.getAttribute('data-theme');
     applyTheme(current === 'dark' ? 'light' : 'dark');
   });
 
-  // Restore saved theme or follow system
   const saved = localStorage.getItem('es-theme');
   if (saved) {
     applyTheme(saved);
@@ -505,11 +726,100 @@
     applyTheme('dark');
   }
 
+  /* ---- Debug Panel ---- */
+  (function initDebugPanel() {
+    const panel    = document.getElementById('debugPanel');
+    const header   = document.getElementById('debugPanelHeader');
+    const toggle   = document.getElementById('debugPanelToggle');
+    const clearBtn = document.getElementById('debugClear');
+    if (!panel || !header) return;
+
+    if (localStorage.getItem('es-debug-collapsed') === 'true') {
+      panel.classList.add('collapsed');
+      if (toggle) toggle.textContent = '▼';
+    }
+
+    header.addEventListener('click', function() {
+      panel.classList.toggle('collapsed');
+      const collapsed = panel.classList.contains('collapsed');
+      localStorage.setItem('es-debug-collapsed', collapsed);
+      if (toggle) toggle.textContent = collapsed ? '▼' : '▲';
+    });
+
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const logsEl = document.getElementById('debugLogs');
+        if (logsEl) logsEl.innerHTML = '';
+        localStorage.removeItem('es-debug-logs');
+        dbLog('info', 'Logs cleared');
+      });
+    }
+
+    // Load recent logs from localStorage
+    try {
+      const logs = JSON.parse(localStorage.getItem('es-debug-logs') || '[]');
+      const container = document.getElementById('debugLogs');
+      if (container) {
+        logs.slice(0, 20).reverse().forEach(function(entry) {
+          const div = document.createElement('div');
+          div.className = 'debug-log-entry ' + entry.level;
+          div.textContent = '[' + entry.ts + '] ' + entry.msg;
+          container.appendChild(div);
+        });
+      }
+    } catch(e) {}
+
+    setInterval(_updateDebugMetrics, 1000);
+    _updateDebugMetrics();
+    dbLog('info', 'Page initialized', 'Load: ' + Math.round(performance.now()) + 'ms');
+  })();
+
+  /* ---- Hamburger Menu ---- */
+  (function initHamburger() {
+    const btn = document.getElementById('hamburgerBtn');
+    const nav = document.getElementById('mobileNav');
+    if (!btn || !nav) return;
+
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      nav.classList.toggle('open');
+      btn.textContent = nav.classList.contains('open') ? '✕' : '☰';
+    });
+
+    document.addEventListener('click', function(e) {
+      if (!btn.contains(e.target) && !nav.contains(e.target)) {
+        nav.classList.remove('open');
+        btn.textContent = '☰';
+      }
+    });
+  })();
+
   /* ---- Init ---- */
   renderProducts();
   loadCloudflareLink();
-  // Auto-refresh every 30 seconds
-  setInterval(loadCloudflareLink, 30000);
+  // Auto-refresh every 30 seconds (reset retryCount for fresh cycle)
+  setInterval(function() { retryCount = 0; loadCloudflareLink(); }, 30000);
 </script>
+<!-- ===== TOAST CONTAINER ===== -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ===== DEBUG PANEL ===== -->
+<div id="debugPanel">
+  <div id="debugPanelHeader">
+    <span id="debugPanelTitle">🔧 Debug Panel</span>
+    <span id="debugPanelToggle">▲</span>
+  </div>
+  <div id="debugPanelBody">
+    <div class="debug-metrics">
+      <div class="debug-metric"><span class="debug-label">FPS</span><span class="debug-val" id="dbFps">--</span></div>
+      <div class="debug-metric"><span class="debug-label">MEM</span><span class="debug-val" id="dbMem">--</span></div>
+      <div class="debug-metric"><span class="debug-label">LOAD</span><span class="debug-val" id="dbLoadTime">--</span></div>
+    </div>
+    <div id="debugLogs"></div>
+    <button id="debugClear">🗑 Clear logs</button>
+  </div>
+</div>
+
 </body>
 </html>
