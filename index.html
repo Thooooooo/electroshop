@@ -381,7 +381,6 @@
 </head>
 <body>
 
-<!-- ===== HEADER ===== -->
 <header>
   <div class="header-inner">
     <div class="logo">⚡ ElectroShop</div>
@@ -399,7 +398,6 @@
   </div>
 </header>
 
-<!-- ===== MOBILE NAV ===== -->
 <nav id="mobileNav" class="mobile-nav">
   <a href="index.html" class="active">🏠 Trang chủ</a>
   <a href="chitiet.html">📋 Chi tiết</a>
@@ -407,10 +405,8 @@
   <a href="#">📞 Liên hệ</a>
 </nav>
 
-<!-- ===== STATUS BANNER ===== -->
 <div id="statusBanner"></div>
 
-<!-- ===== HERO ===== -->
 <section class="hero">
   <div class="hero-content">
     <div class="hero-badge">🔥 Flash Sale – Giảm đến 50%</div>
@@ -423,37 +419,31 @@
   </div>
 </section>
 
-<!-- ===== MAIN ===== -->
 <main>
 
-  <!-- Cloudflare Link Card -->
   <div class="cf-card">
     <div class="cf-card-header">
       <div class="cf-badge">☁️</div>
       <div>
         <h3>Kết nối Cloudflare Tunnel</h3>
-        <p>Link tự động cập nhật từ api.js</p>
+        <p>Link đã được gắn cố định cho đêm nay</p>
       </div>
     </div>
     <div class="cf-link-box">
-      <input type="text" id="cfLinkInput" class="cf-link-input"
-             placeholder="Đang tải link Cloudflare..." readonly />
+      <input type="text" id="cfLinkInput" class="cf-link-input" readonly />
       <button class="btn-copy" onclick="copyLink()">📋 Sao chép</button>
       <button class="btn-open" onclick="openLink()">🚀 Mở link</button>
     </div>
-    <p class="cf-meta" id="cfMeta"><span class="cf-dot"></span>Đang kết nối…</p>
+    <p class="cf-meta" id="cfMeta"><span class="cf-dot"></span>Đã kết nối trực tiếp!</p>
   </div>
 
-  <!-- Products Section -->
   <div id="products">
     <h2 class="section-title">🏪 Sản phẩm nổi bật</h2>
     <p class="section-sub">Hàng chính hãng – Bảo hành 12–24 tháng</p>
     <div class="products-grid" id="productsGrid">
-      <!-- Cards injected by JS -->
-    </div>
+      </div>
   </div>
 
-  <!-- Features Strip -->
   <div class="features-strip">
     <div class="feature-item">
       <div class="feature-icon">🚚</div>
@@ -479,24 +469,13 @@
 
 </main>
 
-<!-- ===== FOOTER ===== -->
 <footer>
   <p>&copy; 2025 <span>ElectroShop</span> – Điện tử chính hãng. All rights reserved.</p>
 </footer>
 
-<!-- ===== JAVASCRIPT ===== -->
 <script>
-  /* ---- Product Data ---- */
-  const PRODUCTS = [
-    { id: 1, icon: '📱', name: 'iPhone 15 Pro Max', desc: 'Chip A17 Pro, camera 48MP, Dynamic Island', price: '29.990.000₫' },
-    { id: 2, icon: '💻', name: 'MacBook Air M3', desc: 'Apple M3, RAM 16GB, SSD 512GB', price: '32.990.000₫' },
-    { id: 3, icon: '⌚', name: 'Apple Watch S9', desc: 'Màn hình luôn sáng, S9 SiP, GPS', price: '10.990.000₫' },
-    { id: 4, icon: '🎧', name: 'AirPods Pro 2', desc: 'ANC thế hệ 2, USB-C, Adaptive Audio', price: '6.490.000₫' },
-    { id: 5, icon: '📷', name: 'Sony A7 IV', desc: 'Full-frame 33MP, 4K 60fps, AF nhanh', price: '65.990.000₫' },
-    { id: 6, icon: '🖥️', name: 'Samsung OLED 55"', desc: 'OLED 4K, 120Hz, Smart TV 2024', price: '28.990.000₫' },
-    { id: 7, icon: '🎮', name: 'PlayStation 5 Slim', desc: 'PS5 Slim, SSD 1TB, DualSense', price: '13.990.000₫' },
-    { id: 8, icon: '🔋', name: 'iPad Pro M4', desc: 'M4 chip, OLED 11", WiFi 6E', price: '24.990.000₫' },
-  ];
+  /* ---- LINK CLOUDFLARE CỐ ĐỊNH ---- */
+  let cloudLink = 'https://indicators-convergence-program-enabling.trycloudflare.com';
 
   /* ---- Performance Tracking (FPS / Memory / Load time) ---- */
   let _fps = 0, _frameCount = 0, _lastFpsTime = performance.now();
@@ -553,27 +532,63 @@
     setTimeout(function() { try { c.removeChild(t); } catch(e) {} }, 3200);
   }
 
-  /* ---- Render Products ---- */
-  function renderProducts() {
+  function setStatus(type, msg) {
+    const banner = document.getElementById('statusBanner');
+    banner.className = type;
+    banner.textContent = msg;
+    if (type === 'success') setTimeout(function() { banner.style.display = 'none'; }, 4000);
+  }
+
+  /* ---- Render Products (DỮ LIỆU TỪ POCKETBASE) ---- */
+  async function renderProducts() {
     try {
+      if (!cloudLink || cloudLink === '#') {
+        dbLog('warn', 'Chưa có cloudLink, không thể tải sản phẩm');
+        return;
+      }
+
       const grid = document.getElementById('productsGrid');
-      grid.innerHTML = PRODUCTS.map(function(p) { return `
-        <div class="product-card" onclick="goDetail(${p.id})" onkeydown="if(event.key==='Enter'||event.key===' ')goDetail(${p.id})" tabindex="0" role="button" aria-label="${p.name}">
-          <div class="product-img">${p.icon}</div>
-          <div class="product-info">
-            <div class="product-name">${p.name}</div>
-            <div class="product-desc">${p.desc}</div>
-            <div class="product-footer">
-              <div class="product-price">${p.price}</div>
-              <button class="btn-detail" onclick="event.stopPropagation();goDetail(${p.id})">Chi tiết →</button>
+      if (!grid) return;
+
+      setStatus('loading', '⏳ Đang tải sản phẩm từ Pi 5...');
+      dbLog('info', 'Fetching products from PocketBase', cloudLink);
+
+      const res = await fetch(`${cloudLink}/api/collections/sanpham/records`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      const data = await res.json();
+      const products = data.items || [];
+
+      grid.innerHTML = products.map(function(p) {
+        const imgUrl = (p.anh && p.anh.length > 0)
+          ? `${cloudLink}/api/files/sanpham/${p.id}/${p.anh[0]}`
+          : 'https://via.placeholder.com/250x200?text=No+Image';
+
+        const priceFormatted = parseInt(p.gia || 0).toLocaleString('vi-VN') + '₫';
+
+        return `
+          <div class="product-card" onclick="goDetail('${p.id}')" onkeydown="if(event.key==='Enter'||event.key===' ')goDetail('${p.id}')" tabindex="0" role="button" aria-label="${p.ten}">
+            <div class="product-img">
+              <img src="${imgUrl}" alt="${p.ten}" style="width:100%; height:100%; object-fit:cover;" />
+            </div>
+            <div class="product-info">
+              <div class="product-name">${p.ten || 'Sản phẩm'}</div>
+              <div class="product-desc">${p.mo_ta || ''}</div>
+              <div class="product-footer">
+                <div class="product-price">${priceFormatted}</div>
+                <button class="btn-detail" onclick="event.stopPropagation(); goDetail('${p.id}')">Chi tiết →</button>
+              </div>
             </div>
           </div>
-        </div>
-      `; }).join('');
-      dbLog('info', 'Products rendered (' + PRODUCTS.length + ' items)');
+        `;
+      }).join('');
+
+      setStatus('success', `✅ Đã tải ${products.length} sản phẩm!`);
+      dbLog('info', 'Products rendered successfully', `${products.length} items`);
     } catch(err) {
-      dbLog('error', 'renderProducts failed', err.message + '\n' + err.stack);
-      showToast('⚠️ Lỗi render sản phẩm', 'error');
+      dbLog('error', 'renderProducts failed', err.message);
+      showToast('⚠️ Lỗi tải sản phẩm', 'error');
+      setStatus('error', '❌ Không tải được sản phẩm');
     }
   }
 
@@ -583,101 +598,6 @@
 
   function scrollToProducts() {
     document.getElementById('products').scrollIntoView({ behavior: 'smooth' });
-  }
-
-  /* ---- Cloudflare Link Loader ---- */
-  let cloudLink = '';
-  let retryCount = 0;
-  const MAX_RETRY = 3;
-
-  function setStatus(type, msg) {
-    const banner = document.getElementById('statusBanner');
-    banner.className = type;
-    banner.textContent = msg;
-    if (type === 'success') setTimeout(function() { banner.style.display = 'none'; }, 4000);
-  }
-
-  function updateMeta(msg) {
-    document.getElementById('cfMeta').innerHTML =
-      '<span class="cf-dot"></span>' + msg;
-  }
-
-  async function _fetchApiJs(url) {
-    const controller = new AbortController();
-    const tid = setTimeout(function() { controller.abort(); }, 5000);
-    try {
-      const res = await fetch(url, { signal: controller.signal });
-      clearTimeout(tid);
-      if (!res.ok) return null;
-      const text = await res.text();
-      const match = text.match(/const\s+CLOUD_LINK\s*=\s*['"`]([^'"`]+)['"`]/);
-      return match ? match[1].trim() : null;
-    } catch(e) {
-      clearTimeout(tid);
-      return null;
-    }
-  }
-
-  async function loadCloudflareLink() {
-    setStatus('loading', '⏳ Đang tải link Cloudflare từ api.js…');
-    dbLog('info', 'Loading Cloudflare link, attempt ' + (retryCount + 1));
-    try {
-      const ts = Date.now();
-      const paths = [
-        'api.js?_t=' + ts,
-        '/api.js?_t=' + ts,
-        '/var/www/html/api.js?_t=' + ts,
-      ];
-      let found = null;
-      for (const path of paths) {
-        found = await _fetchApiJs(path);
-        if (found) { dbLog('info', 'CLOUD_LINK found at ' + path); break; }
-      }
-
-      if (found) {
-        cloudLink = found;
-        document.getElementById('cfLinkInput').value = cloudLink;
-        updateMeta('Cập nhật lúc ' + new Date().toLocaleTimeString('vi-VN') + ' · Tự động làm mới sau 30s');
-        setStatus('success', '✅ Đã tải link Cloudflare thành công!');
-        retryCount = 0;
-        dbLog('info', 'Cloudflare link loaded', cloudLink);
-        console.log('[ElectroShop] Cloudflare link loaded:', cloudLink);
-        return;
-      }
-
-      throw new Error('CLOUD_LINK not found in any api.js path');
-    } catch(err) {
-      retryCount++;
-      dbLog('error', 'loadCloudflareLink failed', err.message);
-      console.error('[ElectroShop] Error loading api.js:', err.message);
-
-      if (retryCount <= MAX_RETRY) {
-        const delay = retryCount * 3;
-        setStatus('error', '⚠️ Không tải được api.js (lần ' + retryCount + '/' + MAX_RETRY + '). Thử lại sau ' + delay + 's…');
-        updateMeta('Thử lại lần ' + retryCount + '/' + MAX_RETRY + '…');
-        showToast('⚠️ Lần ' + retryCount + ': Không tải được api.js', 'error');
-        setTimeout(loadCloudflareLink, delay * 1000);
-      } else {
-        // Fallback: try localhost:8080
-        const fallback = await _fetchApiJs('http://localhost:8080/api.js?_t=' + Date.now());
-        if (fallback) {
-          cloudLink = fallback;
-          document.getElementById('cfLinkInput').value = cloudLink;
-          updateMeta('Fallback localhost:8080 · ' + new Date().toLocaleTimeString('vi-VN'));
-          setStatus('success', '✅ Đã tải từ localhost:8080!');
-          retryCount = 0;
-          dbLog('info', 'Cloudflare link loaded from fallback localhost:8080', cloudLink);
-          return;
-        }
-        cloudLink = '#';
-        document.getElementById('cfLinkInput').value = 'api.js chưa có – hãy chạy script Cloudflare';
-        updateMeta('⚠️ Không tìm thấy api.js – dùng link thay thế');
-        setStatus('error', '❌ Không tải được api.js sau 3 lần thử. Kiểm tra lại script Cloudflare!');
-        showToast('❌ Không tải được api.js', 'error');
-        dbLog('error', 'All fallbacks exhausted – placeholder mode');
-        console.error('[ElectroShop] Fallback mode – api.js unavailable');
-      }
-    }
   }
 
   /* ---- Copy / Open ---- */
@@ -795,16 +715,18 @@
     });
   })();
 
-  /* ---- Init ---- */
-  renderProducts();
-  loadCloudflareLink();
-  // Auto-refresh every 30 seconds (reset retryCount for fresh cycle)
-  setInterval(function() { retryCount = 0; loadCloudflareLink(); }, 30000);
+  /* ---- Init System ---- */
+  async function init() {
+    document.getElementById('cfLinkInput').value = cloudLink;
+    await renderProducts();
+  }
+  
+  // Khởi chạy ngay lập tức
+  init();
+
 </script>
-<!-- ===== TOAST CONTAINER ===== -->
 <div class="toast-container" id="toastContainer"></div>
 
-<!-- ===== DEBUG PANEL ===== -->
 <div id="debugPanel">
   <div id="debugPanelHeader">
     <span id="debugPanelTitle">🔧 Debug Panel</span>
