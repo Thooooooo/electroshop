@@ -759,49 +759,45 @@
   }
 
   /* ─── PocketBase API ────────────────────────────────── */
-  let cloudLink = "https://builds-resistant-hawaiian-pockets.trycloudflare.com";
+  let cloudLink = "https://builds-resistant-hawaiian-pockets.trycloudflare.com"; // Link mới nhất
   let allProducts = [];
 
   async function loadCloudflareLink() {
+    const tunnelLink = "https://builds-resistant-hawaiian-pockets.trycloudflare.com";
     try {
-      const res = await fetch("https://builds-resistant-hawaiian-pockets.trycloudflare.com/api/health");
+      // Thử kết nối tới link Cloudflare
+      const res = await fetch(`${tunnelLink}/api/health`).catch(() => ({ ok: false }));
       if (res.ok) {
-        cloudLink = "https://builds-resistant-hawaiian-pockets.trycloudflare.com";
+        cloudLink = tunnelLink;
       } else {
-        throw new Error("Cloudflare không khả dụng");
+        // Nếu fail thì thử localhost
+        const resLocal = await fetch("http://localhost:8080/api/health").catch(() => ({ ok: false }));
+        cloudLink = resLocal.ok ? "http://localhost:8080" : tunnelLink;
       }
     } catch (e) {
-      console.warn("Cloudflare lỗi, thử fallback localhost...", e);
-      try {
-        const res2 = await fetch("http://localhost:8080/api/health");
-        if (res2.ok) {
-          cloudLink = "http://localhost:8080";
-        } else {
-          throw new Error("Localhost cũng không khả dụng");
-        }
-      } catch (e2) {
-        console.error("Không thể kết nối API:", e2);
-        showToast("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.", "error");
-        setTimeout(loadCloudflareLink, 5000);
-        return;
-      }
+      cloudLink = tunnelLink;
     }
+    console.log("🚀 Kết nối tới API:", cloudLink);
     loadProducts();
   }
 
   async function loadProducts() {
     try {
-      const res = await fetch(`${cloudLink}/api/collections/sanpham/records?perPage=50`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      // Đảm bảo link không bị dính dấu / thừa và fetch đúng bảng sanpham
+      const apiUrl = `${cloudLink.replace(/\/$/, '')}/api/collections/sanpham/records?sort=-created`;
+      const response = await fetch(apiUrl);
+      
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      
+      const data = await response.json();
       allProducts = data.items || [];
       renderProducts(allProducts);
     } catch (err) {
-      console.error("Lỗi tải sản phẩm:", err);
-      showToast("Không thể tải sản phẩm. Đang thử lại...", "error");
+      console.error("❌ Lỗi tải sản phẩm:", err);
+      showToast("Không thể tải dữ liệu. Hãy kiểm tra API Rules trên PocketBase!", "error");
       const grid = document.getElementById('productGrid');
       grid.className = 'product-grid';
-      grid.innerHTML = `<div class="empty-state"><div class="empty-state__icon">⚠️</div><div class="empty-state__text">Không thể tải sản phẩm. Vui lòng thử lại sau.</div></div>`;
+      grid.innerHTML = '<div class="empty-state"><div class="empty-state__icon">⚠️</div><div class="empty-state__text">Lỗi kết nối API. Hãy kiểm tra lại PocketBase trên Pi 5.</div></div>';
     }
   }
 
