@@ -911,13 +911,13 @@
   }
 
   /* ─── PocketBase API ────────────────────────────────── */
-  let cloudLink = "https://builds-resistant-hawaiian-pockets.trycloudflare.com";
+  let cloudLink = "https://powered-invention-recorder-finder.trycloudflare.com";
 
   async function loadCloudflareLink() {
     try {
-      const res = await fetch("https://builds-resistant-hawaiian-pockets.trycloudflare.com/api/health");
+      const res = await fetch("https://powered-invention-recorder-finder.trycloudflare.com/api/health");
       if (res.ok) {
-        cloudLink = "https://builds-resistant-hawaiian-pockets.trycloudflare.com";
+        cloudLink = "https://powered-invention-recorder-finder.trycloudflare.com";
       } else {
         throw new Error("Cloudflare không khả dụng");
       }
