@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Giỏ hàng – ElectroShop</title>
+  <style>
+    :root {
+      --grad-start: #2563eb; --grad-mid: #7c3aed; --grad-end: #db2777;
+      --bg: #f8fafc; --surface: #ffffff; --text: #1e293b;
+      --text-muted: #64748b; --border: #e2e8f0;
+      --shadow: 0 4px 24px rgba(37,99,235,.12);
+      --radius: 16px; --transition: .3s cubic-bezier(.4,0,.2,1);
+    }
+    [data-theme="dark"] {
+      --bg: #0f172a; --surface: #1e293b; --text: #f1f5f9;
+      --text-muted: #94a3b8; --border: #334155;
+      --shadow: 0 4px 24px rgba(0,0,0,.4);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    a { text-decoration: none; color: inherit; }
+
+    header {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      box-shadow: 0 2px 12px rgba(0,0,0,.06); backdrop-filter: blur(12px);
+    }
+    .header-inner {
+      max-width: 900px; margin: 0 auto; padding: 0 20px;
+      height: 64px; display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    }
+    .logo {
+      font-size: 1.5rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--grad-start), var(--grad-mid), var(--grad-end));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .header-actions { display: flex; align-items: center; gap: 12px; }
+    .btn-icon {
+      width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border);
+      background: var(--surface); display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 1.1rem; transition: all var(--transition); color: var(--text);
+      position: relative;
+    }
+    .btn-icon:hover { background: var(--bg); transform: scale(1.08); }
+
+    main { max-width: 900px; margin: 40px auto; padding: 0 20px; }
+    h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 24px; }
+
+    /* Cart items */
+    .cart-list { display: flex; flex-direction: column; gap: 16px; margin-bottom: 32px; }
+    .cart-item {
+      display: flex; align-items: center; gap: 16px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow);
+    }
+    .item-icon { font-size: 2.5rem; width: 60px; text-align: center; flex-shrink: 0; }
+    .item-img  { width: 60px; height: 60px; object-fit: contain; border-radius: 8px; flex-shrink: 0; }
+    .item-info { flex: 1; min-width: 0; }
+    .item-name  { font-weight: 700; font-size: 1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .item-price { color: var(--grad-start); font-weight: 600; margin-top: 4px; }
+    .item-qty   { display: flex; align-items: center; gap: 8px; }
+    .qty-btn {
+      width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border);
+      background: var(--bg); cursor: pointer; font-size: 1.1rem; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; transition: background .2s;
+    }
+    .qty-btn:hover { background: var(--grad-start); color: #fff; border-color: var(--grad-start); }
+    .qty-num { min-width: 28px; text-align: center; font-weight: 700; font-size: 1.1rem; }
+    .item-subtotal { font-weight: 700; white-space: nowrap; min-width: 90px; text-align: right; }
+    .btn-remove {
+      background: none; border: none; cursor: pointer; font-size: 1.2rem;
+      color: #ef4444; padding: 4px; border-radius: 6px; transition: background .2s;
+    }
+    .btn-remove:hover { background: #fee2e2; }
+
+    /* Summary */
+    .cart-summary {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow);
+    }
+    .summary-row { display: flex; justify-content: space-between; margin-bottom: 12px; }
+    .summary-total { font-size: 1.3rem; font-weight: 800; color: var(--grad-start); }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 16px 0; }
+    .btn-checkout {
+      width: 100%; padding: 16px; border: none; border-radius: var(--radius);
+      background: linear-gradient(135deg, var(--grad-start), var(--grad-mid));
+      color: #fff; font-size: 1.1rem; font-weight: 700; cursor: pointer;
+      transition: opacity .2s, transform .1s; margin-top: 8px;
+    }
+    .btn-checkout:hover { opacity: .9; transform: translateY(-1px); }
+    .btn-checkout:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* Empty cart */
+    .cart-empty { text-align: center; padding: 80px 20px; }
+    .cart-empty .big-icon { font-size: 5rem; margin-bottom: 16px; }
+    .cart-empty p { color: var(--text-muted); font-size: 1.1rem; margin-bottom: 24px; }
+    .btn-continue {
+      display: inline-block; padding: 12px 32px; border-radius: 999px;
+      background: linear-gradient(135deg, var(--grad-start), var(--grad-mid));
+      color: #fff; font-weight: 700; font-size: 1rem; transition: opacity .2s;
+    }
+    .btn-continue:hover { opacity: .88; }
+  </style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <a href="index.html" class="logo">⚡ ElectroShop</a>
+    <div class="header-actions">
+      <button class="btn-icon" id="themeToggle" title="Đổi giao diện">🌙</button>
+      <button class="btn-icon" title="Giỏ hàng" onclick="location.href='cart.html'">🛒</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <h1>🛒 Giỏ hàng</h1>
+
+  <div id="cartEmpty" class="cart-empty" style="display:none;">
+    <div class="big-icon">🛒</div>
+    <p>Giỏ hàng trống. Hãy chọn thêm sản phẩm!</p>
+    <a href="index.html" class="btn-continue">🛍 Tiếp tục mua sắm</a>
+  </div>
+
+  <div id="cartContent" style="display:none;">
+    <div class="cart-list" id="cartList"></div>
+    <div class="cart-summary">
+      <div class="summary-row">
+        <span>Số lượng sản phẩm</span>
+        <span id="summaryCount">0</span>
+      </div>
+      <div class="summary-row">
+        <span>Tạm tính</span>
+        <span id="summarySubtotal">0₫</span>
+      </div>
+      <div class="summary-row">
+        <span>Phí vận chuyển</span>
+        <span style="color:#22c55e;">Miễn phí 🎉</span>
+      </div>
+      <hr class="divider" />
+      <div class="summary-row summary-total">
+        <span>Tổng cộng</span>
+        <span id="summaryTotal">0₫</span>
+      </div>
+      <button class="btn-checkout" onclick="goCheckout()">Tiến hành thanh toán →</button>
+    </div>
+  </div>
+</main>
+
+<script src="cart.js"></script>
+<script>
+  /* Theme */
+  const saved = localStorage.getItem('es-theme');
+  if (saved) document.documentElement.setAttribute('data-theme', saved);
+  else if (window.matchMedia('(prefers-color-scheme: dark)').matches) document.documentElement.setAttribute('data-theme','dark');
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const t = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', t);
+    localStorage.setItem('es-theme', t);
+    document.getElementById('themeToggle').textContent = t === 'dark' ? '☀️' : '🌙';
+  });
+
+  function fmtPrice(n) {
+    return Number(n).toLocaleString('vi-VN') + '₫';
+  }
+
+  function renderCart() {
+    const items = cartGet();
+    const empty   = document.getElementById('cartEmpty');
+    const content = document.getElementById('cartContent');
+
+    if (items.length === 0) {
+      empty.style.display   = 'block';
+      content.style.display = 'none';
+      return;
+    }
+    empty.style.display   = 'none';
+    content.style.display = 'block';
+
+    const list = document.getElementById('cartList');
+    list.innerHTML = items.map(item => {
+      const priceNum = typeof item.price === 'number' ? item.price : parsePrice(item.price);
+      const sub = priceNum * item.qty;
+      const iconHtml = (item.icon && item.icon.startsWith('http'))
+        ? `<img src="${item.icon}" class="item-img" alt="${item.name}" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'item-icon',textContent:'🛒'}))">`
+        : `<span class="item-icon">${item.icon || '🛒'}</span>`;
+      return `
+        <div class="cart-item" data-id="${item.id}">
+          ${iconHtml}
+          <div class="item-info">
+            <div class="item-name">${item.name}</div>
+            <div class="item-price">${fmtPrice(priceNum)}</div>
+          </div>
+          <div class="item-qty">
+            <button class="qty-btn" onclick="changeQty('${item.id}', -1)">−</button>
+            <span class="qty-num">${item.qty}</span>
+            <button class="qty-btn" onclick="changeQty('${item.id}', 1)">+</button>
+          </div>
+          <div class="item-subtotal">${fmtPrice(sub)}</div>
+          <button class="btn-remove" onclick="removeItem('${item.id}')" title="Xóa">🗑</button>
+        </div>
+      `;
+    }).join('');
+
+    const count = cartCount();
+    const total = cartTotal();
+    document.getElementById('summaryCount').textContent = count + ' sản phẩm';
+    document.getElementById('summarySubtotal').textContent = fmtPrice(total);
+    document.getElementById('summaryTotal').textContent    = fmtPrice(total);
+  }
+
+  function changeQty(id, delta) {
+    const items = cartGet();
+    const item  = items.find(i => String(i.id) === String(id));
+    if (!item) return;
+    const newQty = item.qty + delta;
+    if (newQty <= 0) { cartRemove(id); } else { cartUpdate(id, newQty); }
+    renderCart();
+    cartBadgeUpdate();
+  }
+
+  function removeItem(id) {
+    cartRemove(id);
+    renderCart();
+    cartBadgeUpdate();
+  }
+
+  function goCheckout() {
+    const items = cartGet();
+    if (items.length === 0) { alert('Giỏ hàng trống!'); return; }
+    location.href = 'checkout.html';
+  }
+
+  renderCart();
+</script>
+</body>
+</html>

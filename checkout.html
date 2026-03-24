@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Thanh toán – ElectroShop</title>
+  <style>
+    :root {
+      --grad-start: #2563eb; --grad-mid: #7c3aed; --grad-end: #db2777;
+      --bg: #f8fafc; --surface: #ffffff; --text: #1e293b;
+      --text-muted: #64748b; --border: #e2e8f0;
+      --shadow: 0 4px 24px rgba(37,99,235,.12);
+      --radius: 16px; --transition: .3s cubic-bezier(.4,0,.2,1);
+    }
+    [data-theme="dark"] {
+      --bg: #0f172a; --surface: #1e293b; --text: #f1f5f9;
+      --text-muted: #94a3b8; --border: #334155;
+      --shadow: 0 4px 24px rgba(0,0,0,.4);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+    a { text-decoration: none; color: inherit; }
+
+    header {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      box-shadow: 0 2px 12px rgba(0,0,0,.06); backdrop-filter: blur(12px);
+    }
+    .header-inner {
+      max-width: 900px; margin: 0 auto; padding: 0 20px; height: 64px;
+      display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    }
+    .logo {
+      font-size: 1.5rem; font-weight: 800;
+      background: linear-gradient(135deg, var(--grad-start), var(--grad-mid), var(--grad-end));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+    }
+    .header-actions { display: flex; align-items: center; gap: 12px; }
+    .btn-icon {
+      width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border);
+      background: var(--surface); display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: 1.1rem; transition: all var(--transition); color: var(--text); position: relative;
+    }
+    .btn-icon:hover { background: var(--bg); transform: scale(1.08); }
+
+    main { max-width: 900px; margin: 40px auto; padding: 0 20px; }
+    h1 { font-size: 1.8rem; font-weight: 800; margin-bottom: 28px; }
+
+    .checkout-grid {
+      display: grid; grid-template-columns: 1fr 380px; gap: 24px;
+    }
+    @media (max-width: 700px) { .checkout-grid { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow);
+    }
+    .card h2 { font-size: 1.1rem; font-weight: 700; margin-bottom: 20px; }
+
+    /* Form */
+    .form-group { margin-bottom: 16px; }
+    label { display: block; font-size: .85rem; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+    input, textarea {
+      width: 100%; padding: 12px 14px; border: 1px solid var(--border);
+      border-radius: 10px; background: var(--bg); color: var(--text);
+      font-size: .95rem; transition: border-color .2s, box-shadow .2s;
+      font-family: inherit;
+    }
+    input:focus, textarea:focus {
+      outline: none; border-color: var(--grad-start);
+      box-shadow: 0 0 0 3px rgba(37,99,235,.12);
+    }
+    textarea { resize: vertical; min-height: 80px; }
+
+    /* Order summary */
+    .order-items { margin-bottom: 16px; }
+    .order-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: .9rem; }
+    .order-item:last-child { border-bottom: none; }
+    .item-qty-badge { background: var(--grad-start); color: #fff; border-radius: 999px; padding: 1px 8px; font-size: .75rem; font-weight: 700; margin-left: 6px; }
+    .order-total-row { display: flex; justify-content: space-between; font-size: 1.15rem; font-weight: 800; margin-top: 12px; color: var(--grad-start); }
+
+    /* QR Code */
+    .qr-section { margin-top: 20px; text-align: center; }
+    .qr-section h3 { font-size: .95rem; font-weight: 700; margin-bottom: 12px; color: var(--text-muted); }
+    .qr-img { width: 180px; height: 180px; border-radius: 12px; border: 2px solid var(--border); object-fit: contain; }
+    .qr-note { font-size: .8rem; color: var(--text-muted); margin-top: 8px; line-height: 1.5; }
+    .bank-info { background: var(--bg); border-radius: 10px; padding: 10px 14px; margin-top: 12px; font-size: .85rem; text-align: left; }
+    .bank-info div { margin-bottom: 4px; }
+    .bank-info strong { color: var(--grad-start); }
+
+    /* Submit */
+    .btn-order {
+      width: 100%; padding: 16px; border: none; border-radius: var(--radius);
+      background: linear-gradient(135deg, var(--grad-start), var(--grad-mid));
+      color: #fff; font-size: 1.1rem; font-weight: 700; cursor: pointer;
+      transition: opacity .2s, transform .1s; margin-top: 20px;
+    }
+    .btn-order:hover { opacity: .9; transform: translateY(-1px); }
+    .btn-order:disabled { opacity: .5; cursor: not-allowed; }
+
+    /* Success */
+    .success-screen {
+      display: none; text-align: center; padding: 60px 20px;
+      background: var(--surface); border-radius: var(--radius);
+      border: 1px solid var(--border); box-shadow: var(--shadow);
+    }
+    .success-screen .big-icon { font-size: 5rem; margin-bottom: 16px; }
+    .success-screen h2 { font-size: 1.6rem; font-weight: 800; margin-bottom: 12px; }
+    .success-screen p { color: var(--text-muted); margin-bottom: 24px; }
+    .btn-home {
+      display: inline-block; padding: 12px 32px; border-radius: 999px;
+      background: linear-gradient(135deg, var(--grad-start), var(--grad-mid));
+      color: #fff; font-weight: 700; font-size: 1rem;
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <a href="index.html" class="logo">⚡ ElectroShop</a>
+    <div class="header-actions">
+      <button class="btn-icon" id="themeToggle" title="Đổi giao diện">🌙</button>
+      <button class="btn-icon" title="Giỏ hàng" onclick="location.href='cart.html'">🛒</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div id="successScreen" class="success-screen">
+    <div class="big-icon">🎉</div>
+    <h2>Đặt hàng thành công!</h2>
+    <p>Cảm ơn bạn đã mua hàng tại ElectroShop.<br>Chúng tôi sẽ liên hệ với bạn sớm nhất!</p>
+    <a href="index.html" class="btn-home">🏠 Quay về trang chủ</a>
+  </div>
+
+  <div id="checkoutMain">
+    <h1>💳 Thanh toán</h1>
+    <div class="checkout-grid">
+
+      <!-- Bên trái: Form khách hàng -->
+      <div>
+        <div class="card">
+          <h2>📋 Thông tin giao hàng</h2>
+          <div class="form-group">
+            <label for="inpName">Họ và tên *</label>
+            <input id="inpName" type="text" placeholder="Nguyễn Văn A" required />
+          </div>
+          <div class="form-group">
+            <label for="inpPhone">Số điện thoại *</label>
+            <input id="inpPhone" type="tel" placeholder="0912 345 678" required />
+          </div>
+          <div class="form-group">
+            <label for="inpAddress">Địa chỉ giao hàng *</label>
+            <textarea id="inpAddress" placeholder="Số nhà, đường, phường/xã, quận/huyện, tỉnh/thành phố"></textarea>
+          </div>
+          <div class="form-group">
+            <label for="inpNote">Ghi chú (tuỳ chọn)</label>
+            <input id="inpNote" type="text" placeholder="Giao giờ hành chính, gọi trước khi giao..." />
+          </div>
+          <button class="btn-order" onclick="placeOrder()">🛒 Đặt hàng ngay</button>
+        </div>
+      </div>
+
+      <!-- Bên phải: Tóm tắt + QR -->
+      <div>
+        <div class="card">
+          <h2>🧾 Đơn hàng của bạn</h2>
+          <div class="order-items" id="orderItems"></div>
+          <div class="order-total-row">
+            <span>Tổng cộng</span>
+            <span id="orderTotal">0₫</span>
+          </div>
+
+          <!-- VietQR thanh toán -->
+          <div class="qr-section">
+            <h3>📱 Quét QR chuyển khoản</h3>
+            <img id="qrImg" src="" alt="QR Thanh toán" class="qr-img" />
+            <div class="bank-info" id="bankInfo"></div>
+            <p class="qr-note">Nội dung CK: <strong id="qrNote">ElectroShop + SĐT</strong></p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<script src="cart.js"></script>
+<script>
+  /* ── Config thanh toán ──────────────────────────────────
+   * Sửa BANK_ID, ACCOUNT_NO, ACCOUNT_NAME theo tài khoản thực.
+   * Danh sách mã ngân hàng: https://api.vietqr.io/v2/banks
+   * Ví dụ: VCB = Vietcombank, TCB = Techcombank, MB = MB Bank
+   */
+  const PAYMENT = {
+    BANK_ID:      'STB',               // Sacombank
+    ACCOUNT_NO:   '0355020289',
+    ACCOUNT_NAME: 'DO THI THU HA',
+    TEMPLATE:     'compact2',
+  };
+
+  /* ── Theme ── */
+  const saved = localStorage.getItem('es-theme');
+  if (saved) document.documentElement.setAttribute('data-theme', saved);
+  else if (window.matchMedia('(prefers-color-scheme: dark)').matches)
+    document.documentElement.setAttribute('data-theme', 'dark');
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const t = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', t);
+    localStorage.setItem('es-theme', t);
+    document.getElementById('themeToggle').textContent = t === 'dark' ? '☀️' : '🌙';
+  });
+
+  function fmtPrice(n) { return Number(n).toLocaleString('vi-VN') + '₫'; }
+
+  /* ── Đọc và render giỏ hàng ── */
+  function renderOrderSummary() {
+    const items = cartGet();
+    if (items.length === 0) { location.href = 'cart.html'; return; }
+    const total = cartTotal();
+
+    document.getElementById('orderItems').innerHTML = items.map(item => {
+      const price = typeof item.price === 'number' ? item.price : parsePrice(item.price);
+      return `
+        <div class="order-item">
+          <span>${item.icon || '🛒'} ${item.name}<span class="item-qty-badge">×${item.qty}</span></span>
+          <span>${fmtPrice(price * item.qty)}</span>
+        </div>
+      `;
+    }).join('');
+    document.getElementById('orderTotal').textContent = fmtPrice(total);
+
+    // VietQR
+    const phone = document.getElementById('inpPhone').value.trim() || 'ElectroShop';
+    const addInfo = encodeURIComponent(`ElectroShop ${phone}`);
+    const accName = encodeURIComponent(PAYMENT.ACCOUNT_NAME);
+    const qrUrl = `https://img.vietqr.io/image/${PAYMENT.BANK_ID}-${PAYMENT.ACCOUNT_NO}-${PAYMENT.TEMPLATE}.png?amount=${total}&addInfo=${addInfo}&accountName=${accName}`;
+    document.getElementById('qrImg').src = qrUrl;
+    document.getElementById('qrNote').textContent = `ElectroShop ${phone}`;
+    document.getElementById('bankInfo').innerHTML = `
+      <div>🏦 Ngân hàng: <strong>${PAYMENT.BANK_ID}</strong></div>
+      <div>💳 Số TK: <strong>${PAYMENT.ACCOUNT_NO}</strong></div>
+      <div>👤 Tên TK: <strong>${PAYMENT.ACCOUNT_NAME}</strong></div>
+      <div>💰 Số tiền: <strong>${fmtPrice(total)}</strong></div>
+    `;
+  }
+
+  /* ── Đặt hàng ── */
+  async function placeOrder() {
+    const name    = document.getElementById('inpName').value.trim();
+    const phone   = document.getElementById('inpPhone').value.trim();
+    const address = document.getElementById('inpAddress').value.trim();
+
+    if (!name || !phone || !address) {
+      alert('⚠️ Vui lòng điền đầy đủ Họ tên, SĐT và Địa chỉ!');
+      return;
+    }
+
+    const btn = document.querySelector('.btn-order');
+    btn.disabled = true;
+    btn.textContent = '⏳ Đang xử lý...';
+
+    const items = cartGet();
+    const total = cartTotal();
+    const orderData = { name, phone, address, total, items,
+      note: document.getElementById('inpNote').value.trim() };
+
+    try {
+      // Gửi thông báo lên Pi (Flask :5001)
+      await fetch('http://localhost:5001/notify-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderData),
+      });
+    } catch (e) {
+      console.warn('[Checkout] Không gửi được notify tới Pi:', e.message);
+    }
+
+    // Hiển thị màn thành công + xóa giỏ
+    cartClear();
+    cartBadgeUpdate();
+    document.getElementById('checkoutMain').style.display = 'none';
+    document.getElementById('successScreen').style.display = 'block';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  /* ── Init ── */
+  renderOrderSummary();
+
+  // Cập nhật QR khi nhập SĐT
+  document.getElementById('inpPhone').addEventListener('input', renderOrderSummary);
+</script>
+</body>
+</html>
