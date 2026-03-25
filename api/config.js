@@ -1,10 +1,19 @@
-// Vercel Edge Function – trả về API_URL từ environment variable
-// Đặt biến môi trường API_URL trong Vercel Dashboard (Settings → Environment Variables)
+// Vercel Edge Function – đọc tunnel URL trực tiếp từ GitHub public repo
+// Pi tự động cập nhật url.txt qua GitHub API → web nhận URL mới ngay, không cần redeploy
 export const config = { runtime: 'edge' };
 
-export default function handler() {
-  return Response.json(
-    { apiUrl: process.env.API_URL || '' },
-    { headers: { 'Cache-Control': 'public, s-maxage=60' } }
-  );
+const TUNNEL_URL_RAW =
+  'https://raw.githubusercontent.com/Thooooooo/electroshop-tunnel/main/url.txt';
+
+export default async function handler() {
+  try {
+    const res = await fetch(TUNNEL_URL_RAW, { cache: 'no-store' });
+    const apiUrl = (await res.text()).trim();
+    return Response.json(
+      { apiUrl },
+      { headers: { 'Cache-Control': 'no-store' } }
+    );
+  } catch (e) {
+    return Response.json({ apiUrl: '' });
+  }
 }
