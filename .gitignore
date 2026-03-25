@@ -1,7 +1,7 @@
+node_modules/
+venv/
+*.log
+logs/
 __pycache__/
 *.pyc
-*.pyo
-*.log
-venv/
-node_modules/
 .env
