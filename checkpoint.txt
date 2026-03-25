@@ -260,3 +260,12 @@
 [22:01 25/03] | BẢO MẬT v1.3 — PROXY + PASSWORD | api.js, api/products.js, api/news.js, api/order.js, api/product.js, api/config.js, admin.html | ✅ Pi URL ẩn hoàn toàn sau Vercel proxy. F12 chỉ thấy /api/products /api/news /api/order. admin.html: SHA-256 overlay (hash: f05813d7..., MK: Admin@ElectroShop2025). Nút 🔒 khóa session. Git: commit a351e57 → push cả 2 remote. Vercel auto-deploy thành công.
 
 [22:10 25/03] | TẠO CHECKPOINT.TXT + SUPER LOG KÍCH HOẠT | checkpoint.txt | ✅ File tóm tắt toàn bộ dự án: cấu trúc, links, rules PocketBase, bảo mật, git workflow. Git: commit 30b70b8. SUPER LOG MODE: ON — mọi thay đổi từ đây sẽ được ghi vào nhật ký này.
+
+[22:22 25/03/2026] | FIX ST7735 TRẮNG MÀN HÌNH | pi_monitor.py | DONE
+  - Thêm _create_display() với invert=False (INITR_BLACKTAB chuẩn)
+  - Thêm _init_sequence() gửi INVOFF 0x20 + xóa màn về đen sau reinit
+  - Thêm reinit_display() tự động khởi động lại khi màn trắng
+  - Watchdog: nếu >30s không render được → gọi reinit_display()
+  - MAX_SPI_ERRORS=3: sau 3 lỗi SPI liên tiếp → reinit ngay
+  - Bọc disp.display(frame) trong try/except bắt lỗi SPI
+  - Import fallback: hỗ trợ cả 'st7735' lẫn 'ST7735' library

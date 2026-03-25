@@ -5,6 +5,12 @@ Dùng thư viện st7735 (Pimoroni) + Pillow — giống st7735_logs.py đang ho
 
 Chạy thử  : python3 pi_monitor.py
 Autostart : sudo systemctl start electroshop-monitor
+
+BLACKTAB mode:
+  invert=False  → thư viện KHÔNG gửi INVON (0x21)
+  bgr=True      → byte order BGR (mặc định đúng cho BLACKTAB)
+  disp.command(0x20) sau begin() → ép INVOFF ở phần cứng
+  → Kết quả: màu đen = đen, màu trắng = trắng, không bị đảo
 """
 
 import os, re, sys, time, threading, requests
@@ -12,7 +18,14 @@ from datetime import datetime
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
-import st7735
+
+# Hỗ trợ cả 'st7735' (chữ thường) và 'ST7735' (chữ hoa) tuỳ cài đặt
+try:
+    import st7735 as _st7735_mod
+    _ST7735_CLASS = _st7735_mod.ST7735
+except ImportError:
+    import ST7735 as _st7735_mod
+    _ST7735_CLASS = _st7735_mod.ST7735
 
 # ═══════════════════════════════════════════════════════════
 #  CẤU HÌNH
@@ -253,42 +266,122 @@ def notify_ai_done(product_name: str, source: str):
 
 
 # ═══════════════════════════════════════════════════════════
-#  MAIN — dùng thư viện st7735 (Pimoroni), giống st7735_logs.py
+#  DISPLAY INIT & REINIT
+# ═══════════════════════════════════════════════════════════
+
+# Sau bao nhiêu giây không render thành công → tự reinit
+REINIT_AFTER_SECS = 30
+# Số lần lỗi SPI liên tiếp trước khi reinit
+MAX_SPI_ERRORS = 3
+
+def _create_display():
+    """Tạo đối tượng ST7735 với tham số INITR_BLACKTAB chuẩn.
+    
+    BLACKTAB = invert=False + bgr=True + INVOFF hardware (0x20)
+    KHÔNG dùng invert=True vì thư viện sẽ gửi INVON (0x21) làm đảo màu.
+    """
+    return _ST7735_CLASS(
+        port=SPI_PORT, cs=0, dc=PIN_DC, rst=PIN_RST,
+        rotation=ROTATION, width=DISPLAY_W, height=DISPLAY_H,
+        offset_left=0, offset_top=0,
+        invert=False,   # INITR_BLACKTAB: không đảo phần mềm
+        bgr=True,       # byte order BGR (đúng cho BLACKTAB)
+        spi_speed_hz=4_000_000,
+    )
+
+def _init_sequence(disp):
+    """Chạy chuỗi khởi tạo phần cứng sau khi begin()."""
+    disp.begin()
+    disp.command(0x20)   # INVOFF — ép phần cứng ở chế độ BLACKTAB
+    time.sleep(0.05)
+    # Xoá màn hình về đen để tránh rác trên màn hình
+    blank = Image.new("RGB", (disp.width, disp.height), (0, 0, 0))
+    disp.display(blank)
+
+def reinit_display(disp):
+    """Khởi động lại màn hình khi phát hiện màn hình trắng/mất kết nối.
+    
+    Nguyên nhân thường gặp:
+    - Chạm tay gây nhiễu SPI
+    - Dao động nguồn reset controller
+    - Lỗi SPI bus tạm thời
+    """
+    print(f"[Monitor] [{datetime.now().strftime('%H:%M:%S')}] REINIT màn hình ST7735...")
+    add_log("REINIT display!")
+    try:
+        _init_sequence(disp)
+        print("[Monitor] REINIT OK!")
+        add_log("REINIT OK")
+        return True
+    except Exception as e:
+        print(f"[Monitor] REINIT THAT BAI: {e}")
+        add_log(f"REINIT ERR:{str(e)[:10]}")
+        return False
+
+
+# ═══════════════════════════════════════════════════════════
+#  MAIN — INITR_BLACKTAB + watchdog reinit_display()
 # ═══════════════════════════════════════════════════════════
 def main():
-    print("[Monitor] Khoi dong ST7735 (st7735 library)...")
+    print("[Monitor] Khoi dong ST7735 (INITR_BLACKTAB)...")
     print(f"[Monitor] DC=GPIO{PIN_DC} RST=GPIO{PIN_RST} SPI{SPI_PORT}/CE0 rot={ROTATION}")
 
     try:
-        disp = st7735.ST7735(
-            port=SPI_PORT, cs=0, dc=PIN_DC, rst=PIN_RST,
-            rotation=ROTATION, width=DISPLAY_W, height=DISPLAY_H,
-            offset_left=0, offset_top=0,
-        )
-        disp.begin()
-        disp.command(0x20)   # INVOFF (giong st7735_logs.py)
-        print("[Monitor] ST7735 init OK!")
+        disp = _create_display()
+        _init_sequence(disp)
+        print("[Monitor] ST7735 init OK! (BLACKTAB: invert=False, INVOFF=0x20)")
     except Exception as e:
-        print(f"[Monitor] LOI: {e}")
+        print(f"[Monitor] LOI KHOI DONG: {e}")
         sys.exit(1)
 
     add_log("Monitor started")
     _poll_once()
 
     last_poll = 0.0
+    last_render_ok = time.time()
+    spi_error_count = 0
+
     try:
         while True:
             now = time.time()
+
+            # --- Poll trạng thái dịch vụ định kỳ ---
             if now - last_poll >= MONITOR_INTERVAL:
                 _poll_once()
                 last_poll = now
 
+            # --- Watchdog: nếu quá lâu không render được → reinit ---
+            if now - last_render_ok > REINIT_AFTER_SECS:
+                print(f"[Monitor] Watchdog: {REINIT_AFTER_SECS}s không render — reinit...")
+                reinit_display(disp)
+                last_render_ok = time.time()
+                spi_error_count = 0
+                time.sleep(0.5)
+                continue
+
+            # --- Lấy snapshot trạng thái ---
             with _lock:
                 snap = dict(_state)
                 snap["logs"] = list(_state["logs"])
 
             frame = render_frame(snap)
-            disp.display(frame)
+
+            # --- Gọi display() bọc try/except để bắt lỗi SPI ---
+            try:
+                disp.display(frame)
+                last_render_ok = time.time()
+                spi_error_count = 0          # reset counter khi thành công
+            except Exception as e:
+                spi_error_count += 1
+                print(f"[Monitor] Loi display() #{spi_error_count}: {e}")
+                if spi_error_count >= MAX_SPI_ERRORS:
+                    print("[Monitor] Qua nhieu loi SPI — reinit ngay!")
+                    reinit_display(disp)
+                    last_render_ok = time.time()
+                    spi_error_count = 0
+                time.sleep(0.5)
+                continue
+
             time.sleep(1.0)
 
     except KeyboardInterrupt:
