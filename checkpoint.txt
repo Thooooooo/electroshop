@@ -269,3 +269,13 @@
   - MAX_SPI_ERRORS=3: sau 3 lỗi SPI liên tiếp → reinit ngay
   - Bọc disp.display(frame) trong try/except bắt lỗi SPI
   - Import fallback: hỗ trợ cả 'st7735' lẫn 'ST7735' library
+
+[22:35 25/03/2026] | CYD 3.5" DASHBOARD + TOUCH | cyd/cyd_monitor.ino, cyd/User_Setup.h, cyd_serial.py, start_shop.sh | DONE
+  - 4 trang cảm ứng: HOME / ORDERS / NEWS / STATS
+  - HOME: Tunnel status (to), Flask, PocketBase, Vercel, đơn mới nhất
+  - ORDERS: 3 đơn hàng gần nhất (tên, giá, khách, thời gian)
+  - NEWS: 3 tin tức mới (tiêu đề, danh mục, badge màu, link web)
+  - STATS: Tổng SP/ĐH/TT + CPU temp + RAM% + Disk% + Uptime Pi5 + IP
+  - cyd_serial.py: gửi JSON 3s/lần, poll PocketBase 8s/lần, auto-reconnect
+  - start_shop.sh: tự động khởi động và watchdog cyd_serial.py
+  - Firmware: TFT_eSPI ILI9488, ArduinoJson, serial 115200, header clock liên tục

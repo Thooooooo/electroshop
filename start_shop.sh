@@ -14,6 +14,12 @@ nohup /home/tho/pocketbase/pocketbase serve --http="0.0.0.0:$PB_PORT" \
   --dir=/home/tho/pocketbase/pb_data > /tmp/pb.log 2>&1 &
 sleep 2
 
+echo "📺 Khởi động CYD Serial Sender (màn hình 3.5\")..."
+pkill -f "cyd_serial.py" 2>/dev/null || true
+nohup python3 /home/tho/electroshop/cyd_serial.py \
+  > /tmp/cyd.log 2>&1 &
+echo "✅ CYD Serial → /dev/ttyUSB0"
+
 echo "🐍 Khởi động Flask auto_desc (cổng 5001)..."
 pkill -f "auto_desc.py" 2>/dev/null || true
 GEMINI_API_KEY="$GEMINI_API_KEY" nohup python3 /home/tho/electroshop/auto_desc.py \
@@ -115,6 +121,13 @@ while true; do
     nohup /home/tho/pocketbase/pocketbase serve --http="0.0.0.0:$PB_PORT" \
       --dir=/home/tho/pocketbase/pb_data > /tmp/pb.log 2>&1 &
     sleep 3
+  fi
+
+  # Kiểm tra CYD serial
+  if ! pgrep -f "cyd_serial.py" > /dev/null 2>&1; then
+    echo "⚠️  $(date '+%H:%M:%S') CYD serial bị dừng — khởi động lại..."
+    nohup python3 /home/tho/electroshop/cyd_serial.py > /tmp/cyd.log 2>&1 &
+    sleep 2
   fi
 
   # Kiểm tra Flask
