@@ -1,26 +1,33 @@
-// Vercel Edge Function – đọc tunnel URL từ GitHub Contents API (luôn fresh, không cache CDN)
-// Pi tự động cập nhật url.txt qua start_shop.sh → web nhận URL mới ngay lập tức
+// Vercel Edge Function – Kiểm tra kết nối Pi (KHÔNG trả URL về browser)
+// URL Pi chỉ tồn tại trong Vercel env vars — không bao giờ expose ra client
 export const config = { runtime: 'edge' };
 
-const GITHUB_API =
-  'https://api.github.com/repos/Thooooooo/electroshop-tunnel/contents/url.txt';
+async function getPiUrl() {
+  const GITHUB_API = 'https://api.github.com/repos/Thooooooo/electroshop-tunnel/contents/url.txt';
+  const res = await fetch(GITHUB_API, {
+    headers: { 'User-Agent': 'ElectroShop-Health' },
+    cache: 'no-store',
+  });
+  if (!res.ok) throw new Error(`GitHub ${res.status}`);
+  const data = await res.json();
+  return atob(data.content.replace(/\n/g, '')).trim();
+}
 
 export default async function handler() {
   try {
-    const res = await fetch(GITHUB_API, {
-      headers: { 'User-Agent': 'ElectroShop-Vercel' },
-      cache: 'no-store',
-    });
-    if (!res.ok) throw new Error(`GitHub API: ${res.status}`);
-    const data = await res.json();
-    // Nội dung file được base64-encode bởi GitHub API
-    const apiUrl = atob(data.content.replace(/\n/g, '')).trim();
+    const piUrl = process.env.API_URL || await getPiUrl();
+    // Kiểm tra Pi còn sống không (không trả URL ra ngoài)
+    const health = await fetch(`${piUrl}/api/health`, {
+      signal: AbortSignal.timeout(5000),
+    }).catch(() => null);
+
+    const connected = health?.ok ?? false;
     return Response.json(
-      { apiUrl },
+      { connected, ts: Date.now() },
       { headers: { 'Cache-Control': 'no-store' } }
     );
   } catch (e) {
-    console.error('[config] fetch failed:', e.message);
-    return Response.json({ apiUrl: '' });
+    return Response.json({ connected: false, ts: Date.now() });
   }
 }
+

@@ -177,6 +177,94 @@
 </head>
 <body>
 
+<!-- ===== PASSWORD PROTECTION OVERLAY ===== -->
+<div id="authOverlay" style="
+  position:fixed;inset:0;z-index:99999;
+  background:linear-gradient(135deg,#0f172a,#1e1b4b,#0f172a);
+  display:flex;align-items:center;justify-content:center;
+">
+  <div style="
+    background:#1e293b;border:1px solid #334155;border-radius:20px;
+    padding:44px 40px;max-width:400px;width:90%;text-align:center;
+    box-shadow:0 24px 80px rgba(0,0,0,.6);
+  ">
+    <div style="font-size:3rem;margin-bottom:8px;">🔐</div>
+    <h2 style="color:#f1f5f9;font-size:1.4rem;font-weight:900;margin-bottom:6px;">ElectroShop Admin</h2>
+    <p style="color:#64748b;font-size:.88rem;margin-bottom:28px;">Nhập mật khẩu để tiếp tục</p>
+    <input id="authInput" type="password" placeholder="Mật khẩu..." autocomplete="current-password"
+      style="
+        width:100%;padding:13px 18px;border-radius:12px;
+        border:1.5px solid #334155;background:#0f172a;
+        color:#f1f5f9;font-size:1rem;outline:none;margin-bottom:14px;
+        transition:border .2s;
+      "
+      onkeydown="if(event.key==='Enter')verifyAuth()"
+      onfocus="this.style.borderColor='#7c3aed'"
+      onblur="this.style.borderColor='#334155'"
+    />
+    <button onclick="verifyAuth()" style="
+      width:100%;padding:13px;border:none;border-radius:12px;
+      background:linear-gradient(135deg,#7c3aed,#2563eb);
+      color:#fff;font-size:1rem;font-weight:700;cursor:pointer;
+      transition:opacity .2s;
+    " onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+      🔓 Đăng nhập
+    </button>
+    <p id="authError" style="color:#ef4444;font-size:.83rem;margin-top:12px;display:none;">
+      ❌ Mật khẩu không đúng!
+    </p>
+    <p style="color:#475569;font-size:.72rem;margin-top:20px;">
+      Chỉ dành cho quản trị viên ElectroShop
+    </p>
+  </div>
+</div>
+
+<script>
+/* ── PASSWORD PROTECTION ──
+ * Không lưu plain text — chỉ lưu SHA-256 hash.
+ * Mật khẩu mặc định: Admin@ElectroShop2025
+ * Để đổi mật khẩu:
+ *   1. Vào https://emn178.github.io/online-tools/sha256.html
+ *   2. Nhập mật khẩu mới → copy hash
+ *   3. Thay giá trị ADMIN_HASH bên dưới
+ */
+const ADMIN_HASH = 'f05813d741f2b78c49de41247dec350cf913b710aaa8ad19fcfc36dc3047a9fc';
+const SESSION_KEY = 'es_admin_v1';
+
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256',
+    new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf))
+    .map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function verifyAuth() {
+  const val = document.getElementById('authInput').value;
+  const hash = await sha256(val);
+  if (hash === ADMIN_HASH) {
+    sessionStorage.setItem(SESSION_KEY, hash);
+    document.getElementById('authOverlay').style.display = 'none';
+  } else {
+    const errEl = document.getElementById('authError');
+    errEl.style.display = 'block';
+    document.getElementById('authInput').value = '';
+    document.getElementById('authInput').focus();
+    setTimeout(() => errEl.style.display = 'none', 3000);
+  }
+}
+
+// Kiểm tra session khi tải trang
+(async () => {
+  const stored = sessionStorage.getItem(SESSION_KEY);
+  if (stored && stored === ADMIN_HASH) {
+    document.getElementById('authOverlay').style.display = 'none';
+  } else {
+    document.getElementById('authInput').focus();
+  }
+})();
+</script>
+<!-- ===== END PASSWORD PROTECTION ===== -->
+
 <header>
   <div class="header-inner">
     <div style="display:flex;align-items:center;">
@@ -186,6 +274,7 @@
     <div style="display:flex;gap:10px;align-items:center;">
       <a href="index.html"><button class="btn btn-outline btn-sm">🏠 Trang chủ</button></a>
       <button class="btn-icon" id="themeToggle" title="Đổi giao diện">🌙</button>
+      <button class="btn-icon" title="Khóa Admin" onclick="sessionStorage.removeItem('es_admin_v1');location.reload();" style="font-size:1rem;">🔒</button>
     </div>
   </div>
 </header>
@@ -357,8 +446,23 @@
   const AUTO_DESC_SERVER = 'http://localhost:5001';
   let currentEditId = '';
 
-  /* Helper: lấy API URL qua window.API */
-  async function getBase() { return await API.getApiUrl(); }
+  /* Helper: lấy Pi URL trực tiếp (admin cần URL thật để write operations) */
+  let _adminBase = null;
+  async function getBase() {
+    // Nếu chạy local → dùng localhost
+    if (API.isLocal) return 'http://localhost:8090';
+    // Nếu trên Vercel → lấy URL Pi từ GitHub (chỉ admin biết cách này)
+    if (_adminBase) return _adminBase;
+    try {
+      const r = await fetch(
+        'https://api.github.com/repos/Thooooooo/electroshop-tunnel/contents/url.txt',
+        { headers: { 'User-Agent': 'ES-Admin' }, cache: 'no-store' }
+      );
+      const d = await r.json();
+      _adminBase = atob(d.content.replace(/\n/g, '')).trim();
+    } catch (e) { _adminBase = ''; }
+    return _adminBase;
+  }
 
   /* ===== Helpers ===== */
   function setStatus(type, msg, duration = 4000) {
