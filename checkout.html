@@ -185,6 +185,7 @@
   </div>
 </main>
 
+<script src="api.js"></script>
 <script src="cart.js"></script>
 <script>
   /* ── Config thanh toán ──────────────────────────────────
@@ -266,12 +267,7 @@
       note: document.getElementById('inpNote').value.trim() };
 
     try {
-      // Gửi thông báo lên Pi (Flask :5001)
-      await fetch('http://localhost:5001/notify-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderData),
-      });
+      await API.notifyOrder(orderData);
     } catch (e) {
       console.warn('[Checkout] Không gửi được notify tới Pi:', e.message);
     }

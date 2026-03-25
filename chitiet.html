@@ -75,17 +75,7 @@
     .btn-icon:hover { background: var(--bg); transform: scale(1.08); }
 
     /* ===== STATUS BANNER ===== */
-    #statusBanner {
-      padding: 10px 20px; text-align: center; font-size: .88rem; font-weight: 600;
-      transition: all var(--transition);
-      display: none;
-    }
-    #statusBanner.loading  { background: #fef9c3; color: #854d0e; display: block; }
-    #statusBanner.success  { background: #dcfce7; color: #166534; display: block; }
-    #statusBanner.error    { background: #fee2e2; color: #991b1b; display: block; }
-    [data-theme="dark"] #statusBanner.loading { background: #422006; color: #fef08a; }
-    [data-theme="dark"] #statusBanner.success { background: #052e16; color: #86efac; }
-    [data-theme="dark"] #statusBanner.error   { background: #450a0a; color: #fca5a5; }
+    #statusBanner { display: none; }
 
     /* ===== BREADCRUMB ===== */
     .breadcrumb {
@@ -99,59 +89,6 @@
 
     /* ===== MAIN ===== */
     main { max-width: 1200px; margin: 0 auto; padding: 0 20px 60px; }
-
-    /* ===== CLOUDFLARE CARD ===== */
-    .cf-card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 28px;
-      margin-bottom: 40px;
-      box-shadow: var(--shadow);
-    }
-    .cf-card-header { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
-    .cf-badge {
-      width: 36px; height: 36px; border-radius: 50%;
-      background: linear-gradient(135deg, var(--grad-start), var(--grad-mid));
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.1rem; flex-shrink: 0;
-    }
-    .cf-card-header h3 { font-size: 1rem; font-weight: 700; }
-    .cf-card-header p  { font-size: .8rem; color: var(--text-muted); }
-    .cf-link-box {
-      display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
-    }
-    .cf-link-input {
-      flex: 1; min-width: 200px;
-      padding: 12px 16px; border-radius: 10px;
-      border: 1px solid var(--border); background: var(--bg);
-      color: var(--text); font-size: .9rem;
-      font-family: 'Courier New', monospace;
-      outline: none; transition: border-color var(--transition);
-    }
-    .cf-link-input:focus { border-color: var(--grad-start); }
-    .btn-copy, .btn-open {
-      padding: 12px 20px; border-radius: 10px; border: none;
-      font-weight: 700; font-size: .85rem; cursor: pointer;
-      transition: all var(--transition);
-    }
-    .btn-copy { background: var(--grad-start); color: #fff; }
-    .btn-copy:hover { opacity: .88; transform: translateY(-1px); }
-    .btn-open {
-      background: linear-gradient(135deg, var(--grad-mid), var(--grad-end));
-      color: #fff;
-    }
-    .btn-open:hover { opacity: .88; transform: translateY(-1px); }
-    .cf-meta { font-size: .78rem; color: var(--text-muted); margin-top: 10px; }
-    .cf-dot {
-      display: inline-block; width: 8px; height: 8px; border-radius: 50%;
-      background: #22c55e; margin-right: 6px; vertical-align: middle;
-      animation: pulse 2s infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: .4; }
-    }
 
     /* ===== PRODUCT DETAIL LAYOUT ===== */
     .detail-grid {
@@ -383,38 +320,8 @@
   </div>
 </header>
 
-<!-- ===== STATUS BANNER ===== -->
-<div id="statusBanner"></div>
-
-<!-- ===== BREADCRUMB ===== -->
-<div class="breadcrumb">
-  <a href="index.html">🏠 Trang chủ</a>
-  <span>›</span>
-  <a href="#">Điện thoại</a>
-  <span>›</span>
-  <span id="breadcrumbName">Chi tiết sản phẩm</span>
-</div>
-
 <!-- ===== MAIN ===== -->
 <main>
-
-  <!-- Cloudflare Link Card -->
-  <div class="cf-card">
-    <div class="cf-card-header">
-      <div class="cf-badge">☁️</div>
-      <div>
-        <h3>Kết nối Cloudflare Tunnel</h3>
-        <p>Link tự động cập nhật từ api.js</p>
-      </div>
-    </div>
-    <div class="cf-link-box">
-      <input type="text" id="cfLinkInput" class="cf-link-input"
-             placeholder="Đang tải link Cloudflare..." readonly />
-      <button class="btn-copy" onclick="copyLink()">📋 Sao chép</button>
-      <button class="btn-open" onclick="openLink()">🚀 Mở link</button>
-    </div>
-    <p class="cf-meta" id="cfMeta"><span class="cf-dot"></span>Đang kết nối…</p>
-  </div>
 
   <!-- Product Detail -->
   <div class="detail-grid">
@@ -537,24 +444,18 @@
   async function tryLoadFromPocketBase() {
     const params = new URLSearchParams(window.location.search);
     const rawId = params.get('id') || '';
-    // PocketBase ID là chuỗi chữ-số, không phải số nguyên
     if (!rawId || /^\d+$/.test(rawId)) return false;
 
-    // Chờ cloudLink sẵn
-    let waited = 0;
-    while (!cloudLink && waited < 5000) {
-      await new Promise(r => setTimeout(r, 200));
-      waited += 200;
-    }
-    if (!cloudLink || cloudLink === '#') return false;
+    const base = await API.getApiUrl();
+    if (!base) return false;
 
     try {
-      const r = await fetch(`${cloudLink}/api/collections/sanpham/records/${rawId}`);
+      const r = await fetch(`${base}/api/collections/sanpham/records/${rawId}`);
       if (!r.ok) return false;
       const p = await r.json();
 
       const imgUrl = p.anh && p.anh.length > 0
-        ? `${cloudLink}/api/files/${p.collectionId}/${p.id}/${p.anh[0]}`
+        ? API.fileUrl(base, p.collectionId, p.id, p.anh[0])
         : null;
       const price = p.gia ? Number(p.gia).toLocaleString('vi-VN') + '₫' : 'Liên hệ';
 
@@ -642,35 +543,21 @@
     const current = getProductId();
     const currentLoai = current.loai || '';
 
-    console.log('[Similar] Bắt đầu tải sản phẩm tương tự. cloudLink hiện tại:', cloudLink || '(chưa có)');
+    const base = await API.getApiUrl();
 
-    // Chờ cloudLink sẵn sàng (tối đa 5 giây)
-    if (!cloudLink) {
-      console.log('[Similar] Chờ cloudLink tải xong...');
-      await new Promise(r => setTimeout(r, 5000));
-      console.log('[Similar] Sau khi chờ, cloudLink =', cloudLink || '(vẫn trống)');
-    }
-
-    if (cloudLink && cloudLink !== '#' && cloudLink.startsWith('http')) {
+    if (base) {
       try {
-        let url = `${cloudLink}/api/collections/sanpham/records?perPage=50`;
-        if (currentLoai) {
-          url += `&filter=(loai='${currentLoai}')`;
-        }
-        console.log('[Similar] Gọi API:', url);
-        const res = await fetch(url);
-        console.log('[Similar] Response status:', res.status);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        console.log('[Similar] Tổng sản phẩm nhận được:', data.totalItems, '| Items:', data.items?.length);
+        const data = await API.fetchProducts({
+          perPage: 50,
+          filter: currentLoai ? `loai='${currentLoai}'` : ''
+        });
 
         let items = (data.items || []).sort(() => Math.random() - 0.5).slice(0, 4);
 
         if (items.length > 0) {
-          console.log('[Similar] ✅ Hiển thị', items.length, 'sản phẩm từ PocketBase');
           grid.innerHTML = items.map(p => {
             const imgUrl = p.anh && p.anh.length > 0
-              ? `${cloudLink}/api/files/${p.collectionId}/${p.id}/${p.anh[0]}?thumb=300x300`
+              ? API.fileUrl(base, p.collectionId, p.id, p.anh[0], '300x300')
               : null;
             const price = p.gia ? Number(p.gia).toLocaleString('vi-VN') + '₫' : 'Liên hệ';
             return `
@@ -686,17 +573,13 @@
             `;
           }).join('');
           return;
-        } else {
-          console.warn('[Similar] PocketBase trả về 0 sản phẩm. Dùng fallback local.');
         }
       } catch(e) {
-        console.error('[Similar] ❌ Fetch PocketBase thất bại:', e.message, '| URL:', cloudLink);
+        console.warn('[Similar] PocketBase fetch failed:', e.message);
       }
-    } else {
-      console.warn('[Similar] ⚠️ cloudLink không hợp lệ:', cloudLink, '→ dùng fallback local');
     }
 
-    // Fallback: dùng PRODUCTS local cùng loại
+    // Fallback: dùng PRODUCTS local
     const sameLoai = PRODUCTS.filter(p => p.id !== current.id && p.loai === currentLoai);
     const fallback = (sameLoai.length > 0 ? sameLoai : PRODUCTS.filter(p => p.id !== current.id))
       .sort(() => Math.random() - 0.5).slice(0, 4);
@@ -717,102 +600,13 @@
   }
 
   function buyNow() {
-    const link = document.getElementById('cfLinkInput').value;
-    if (link && link !== '#' && link.startsWith('http')) {
-      window.open(link, '_blank', 'noopener,noreferrer');
-    } else {
-      alert('⚡ Tính năng mua ngay sắp ra mắt!');
-    }
+    cartAdd(_currentProduct);
+    location.href = 'cart.html';
   }
 
   function addCart() {
-    if (!_currentProduct) {
-      setStatus('error', '⚠️ Chưa tải được thông tin sản phẩm!');
-      return;
-    }
+    if (!_currentProduct) return;
     cartAdd(_currentProduct);
-  }
-
-  /* ---- Cloudflare Link Loader ---- */
-  let cloudLink = '';
-  let retryCount = 0;
-  const MAX_RETRY = 3;
-
-  function setStatus(type, msg) {
-    const banner = document.getElementById('statusBanner');
-    banner.className = type;
-    banner.textContent = msg;
-    if (type === 'success') setTimeout(() => { banner.style.display = 'none'; }, 4000);
-  }
-
-  function updateMeta(msg) {
-    document.getElementById('cfMeta').innerHTML =
-      `<span class="cf-dot"></span>${msg}`;
-  }
-
-  async function loadCloudflareLink() {
-    setStatus('loading', '⏳ Đang tải link Cloudflare từ api.js…');
-    try {
-      const url = `api.js?_t=${Date.now()}`;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-
-      const text = await res.text();
-      const match = text.match(/const\s+CLOUD_LINK\s*=\s*['"`]([^'"`]+)['"`]/);
-      if (!match) throw new Error('CLOUD_LINK not found in api.js');
-
-      cloudLink = match[1].trim();
-      document.getElementById('cfLinkInput').value = cloudLink;
-      updateMeta(`Cập nhật lúc ${new Date().toLocaleTimeString('vi-VN')} · Tự động làm mới sau 30s`);
-      setStatus('success', '✅ Đã tải link Cloudflare thành công!');
-      retryCount = 0;
-      console.log('[CloudLink] ✅ Link loaded:', cloudLink);
-      // Trigger lại similar products nếu chưa load được
-      const grid = document.getElementById('similarGrid');
-      if (grid && grid.querySelector('.similar-empty')) {
-        console.log('[CloudLink] Thử tải lại sản phẩm tương tự sau khi có link...');
-        renderSimilarProducts();
-      }
-    } catch (err) {
-      retryCount++;
-      console.error('[ElectroShop] Error loading api.js:', err.message);
-
-      if (retryCount <= MAX_RETRY) {
-        const delay = retryCount * 3;
-        setStatus('error', `⚠️ Không tải được api.js (lần ${retryCount}/${MAX_RETRY}). Thử lại sau ${delay}s…`);
-        updateMeta(`Thử lại lần ${retryCount}/${MAX_RETRY}…`);
-        setTimeout(loadCloudflareLink, delay * 1000);
-      } else {
-        cloudLink = '#';
-        document.getElementById('cfLinkInput').value = 'api.js chưa có – hãy chạy script Cloudflare';
-        updateMeta('⚠️ Không tìm thấy api.js – dùng link thay thế');
-        setStatus('error', '❌ Không tải được api.js sau 3 lần thử. Kiểm tra lại script Cloudflare!');
-        console.error('[ElectroShop] Fallback mode – api.js unavailable');
-      }
-    }
-  }
-
-  /* ---- Copy / Open ---- */
-  function copyLink() {
-    if (!cloudLink || cloudLink === '#') {
-      alert('Chưa có link Cloudflare để sao chép!'); return;
-    }
-    navigator.clipboard.writeText(cloudLink)
-      .then(() => setStatus('success', '📋 Đã sao chép link vào clipboard!'))
-      .catch(() => {
-        const el = document.getElementById('cfLinkInput');
-        el.removeAttribute('readonly'); el.select();
-        document.execCommand('copy');
-        el.setAttribute('readonly', '');
-        setStatus('success', '📋 Đã sao chép link!');
-      });
-  }
-
-  function openLink() {
-    if (!cloudLink || cloudLink === '#') {
-      alert('Chưa có link Cloudflare!'); return;
-    }
-    window.open(cloudLink, '_blank', 'noopener,noreferrer');
   }
 
   /* ---- Dark / Light Mode ---- */
@@ -836,15 +630,12 @@
   }
 
   /* ---- Init ---- */
-  renderProductDetail();   // Render local trước (tức thì, không chờ mạng)
+  renderProductDetail();
   renderRelated();
   renderSimilarProducts();
-  loadCloudflareLink();
-  setInterval(loadCloudflareLink, 30000);
-
-  // Sau khi cloudLink ready: nếu ID là PocketBase string ID thì override bằng dữ liệu thật
   tryLoadFromPocketBase();
 </script>
+<script src="api.js"></script>
 <script src="cart.js"></script>
 </body>
 </html>
