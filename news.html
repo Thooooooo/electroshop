@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tin tức – ElectroShop</title>
+  <style>
+    :root {
+      --grad-start: #2563eb; --grad-mid: #7c3aed; --grad-end: #db2777;
+      --bg: #f8fafc; --surface: #ffffff; --text: #1e293b;
+      --text-muted: #64748b; --border: #e2e8f0;
+      --shadow: 0 4px 24px rgba(37,99,235,.12);
+      --radius: 16px; --transition: .3s cubic-bezier(.4,0,.2,1);
+    }
+    [data-theme="dark"] {
+      --bg: #0f172a; --surface: #1e293b; --text: #f1f5f9;
+      --text-muted: #94a3b8; --border: #334155;
+      --shadow: 0 4px 24px rgba(0,0,0,.4);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg); color: var(--text);
+      transition: background var(--transition), color var(--transition);
+      min-height: 100vh;
+    }
+    a { text-decoration: none; color: inherit; }
+
+    /* HEADER */
+    header {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      box-shadow: var(--shadow);
+    }
+    .header-inner {
+      max-width: 1200px; margin: 0 auto; padding: 0 24px;
+      height: 64px; display: flex; align-items: center; gap: 32px;
+    }
+    .logo {
+      font-size: 1.4rem; font-weight: 900;
+      background: linear-gradient(135deg, var(--grad-start), var(--grad-mid));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      white-space: nowrap; text-decoration: none;
+    }
+    .nav { display: flex; align-items: center; gap: 24px; flex: 1; }
+    .nav a { font-weight: 500; color: var(--text-muted); transition: color var(--transition); }
+    .nav a:hover, .nav a.active { color: var(--grad-start); }
+    .header-actions { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+    .btn-icon {
+      background: none; border: none; cursor: pointer;
+      font-size: 1.2rem; padding: 8px; border-radius: 10px;
+      color: var(--text); transition: background var(--transition);
+    }
+    .btn-icon:hover { background: var(--bg); }
+
+    /* HERO BANNER */
+    .news-hero {
+      background: linear-gradient(135deg, var(--grad-start), var(--grad-mid), var(--grad-end));
+      color: #fff; text-align: center; padding: 60px 24px 50px;
+    }
+    .news-hero h1 { font-size: 2.2rem; font-weight: 900; margin-bottom: 10px; }
+    .news-hero p { opacity: .85; font-size: 1.05rem; }
+
+    /* CATEGORY TABS */
+    .tabs {
+      max-width: 1200px; margin: 32px auto 0; padding: 0 24px;
+      display: flex; gap: 10px; flex-wrap: wrap;
+    }
+    .tab-btn {
+      padding: 8px 20px; border-radius: 999px; border: 2px solid var(--border);
+      background: var(--surface); color: var(--text-muted); font-weight: 600;
+      cursor: pointer; transition: all .2s; font-size: .88rem;
+    }
+    .tab-btn:hover { border-color: var(--grad-start); color: var(--grad-start); }
+    .tab-btn.active {
+      background: linear-gradient(135deg, var(--grad-start), var(--grad-mid));
+      color: #fff; border-color: transparent;
+    }
+
+    /* MAIN CONTENT */
+    main { max-width: 1200px; margin: 0 auto; padding: 32px 24px 80px; }
+
+    /* FEATURED (first article) */
+    .featured-card {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 28px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+      box-shadow: var(--shadow); margin-bottom: 40px;
+      cursor: pointer; transition: transform var(--transition);
+    }
+    .featured-card:hover { transform: translateY(-4px); }
+    .featured-img {
+      background: linear-gradient(135deg, #dbeafe, #ede9fe);
+      min-height: 280px; display: flex; align-items: center;
+      justify-content: center; font-size: 5rem;
+    }
+    [data-theme="dark"] .featured-img { background: linear-gradient(135deg, #1e3a5f, #2d1b69); }
+    .featured-body { padding: 32px 32px 32px 8px; display: flex; flex-direction: column; justify-content: center; }
+    .article-category {
+      display: inline-block; padding: 3px 12px; border-radius: 999px;
+      background: linear-gradient(135deg, var(--grad-start), var(--grad-mid));
+      color: #fff; font-size: .72rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .05em; margin-bottom: 12px;
+    }
+    .featured-body h2 { font-size: 1.6rem; font-weight: 800; line-height: 1.35; margin-bottom: 12px; }
+    .featured-body .summary { color: var(--text-muted); line-height: 1.65; font-size: .95rem; margin-bottom: 20px; }
+    .article-meta { font-size: .8rem; color: var(--text-muted); display: flex; gap: 16px; }
+
+    /* ARTICLES GRID */
+    .section-title {
+      font-size: 1.3rem; font-weight: 800; margin-bottom: 20px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .articles-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 24px; margin-bottom: 40px;
+    }
+    .article-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); overflow: hidden;
+      box-shadow: var(--shadow); cursor: pointer;
+      transition: transform var(--transition), box-shadow var(--transition);
+    }
+    .article-card:hover { transform: translateY(-5px); box-shadow: 0 12px 40px rgba(37,99,235,.18); }
+    .article-thumb {
+      width: 100%; aspect-ratio: 16/9;
+      background: linear-gradient(135deg, #dbeafe, #ede9fe);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 3rem; overflow: hidden;
+    }
+    .article-thumb img { width: 100%; height: 100%; object-fit: cover; }
+    [data-theme="dark"] .article-thumb { background: linear-gradient(135deg, #1e3a5f, #2d1b69); }
+    .article-body { padding: 18px; }
+    .article-body h3 {
+      font-weight: 700; font-size: 1rem; line-height: 1.4;
+      margin-bottom: 8px; display: -webkit-box;
+      -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .article-body .summary {
+      font-size: .83rem; color: var(--text-muted); line-height: 1.55;
+      margin-bottom: 12px; display: -webkit-box;
+      -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+    }
+    .article-footer { display: flex; align-items: center; justify-content: space-between; }
+    .btn-read {
+      padding: 7px 14px; border-radius: 8px; border: none;
+      background: linear-gradient(135deg, var(--grad-start), var(--grad-mid));
+      color: #fff; font-size: .8rem; font-weight: 700;
+      cursor: pointer; transition: opacity .2s;
+    }
+    .btn-read:hover { opacity: .85; }
+
+    /* EMPTY STATE */
+    .empty-state {
+      text-align: center; padding: 80px 20px; color: var(--text-muted);
+    }
+    .empty-icon { font-size: 4rem; margin-bottom: 16px; }
+    .empty-state h3 { font-size: 1.2rem; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+    .empty-state p { font-size: .9rem; }
+
+    /* ARTICLE MODAL */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      background: rgba(0,0,0,.55); backdrop-filter: blur(4px);
+      display: none; align-items: flex-start; justify-content: center;
+      padding: 40px 20px; overflow-y: auto;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-box {
+      background: var(--surface); border-radius: var(--radius);
+      max-width: 800px; width: 100%; padding: 40px;
+      position: relative; box-shadow: 0 24px 80px rgba(0,0,0,.3);
+    }
+    .modal-close {
+      position: absolute; top: 16px; right: 16px;
+      background: var(--bg); border: none; border-radius: 50%;
+      width: 36px; height: 36px; cursor: pointer;
+      font-size: 1.1rem; display: flex; align-items: center; justify-content: center;
+      transition: background .2s;
+    }
+    .modal-close:hover { background: var(--border); }
+    .modal-category { margin-bottom: 12px; }
+    .modal-title { font-size: 1.8rem; font-weight: 900; line-height: 1.3; margin-bottom: 12px; }
+    .modal-meta { font-size: .85rem; color: var(--text-muted); margin-bottom: 24px; display: flex; gap: 20px; }
+    .modal-img {
+      width: 100%; aspect-ratio: 16/9; border-radius: 12px; overflow: hidden;
+      background: linear-gradient(135deg, #dbeafe, #ede9fe);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 5rem; margin-bottom: 24px;
+    }
+    .modal-img img { width: 100%; height: 100%; object-fit: cover; }
+    .modal-content { line-height: 1.75; font-size: .97rem; white-space: pre-wrap; }
+
+    /* LOADING */
+    .loading { text-align: center; padding: 60px; color: var(--text-muted); }
+    .spinner {
+      width: 40px; height: 40px; border: 3px solid var(--border);
+      border-top-color: var(--grad-start); border-radius: 50%;
+      animation: spin 1s linear infinite; margin: 0 auto 16px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* FOOTER */
+    footer {
+      background: var(--surface); border-top: 1px solid var(--border);
+      text-align: center; padding: 30px 20px;
+      color: var(--text-muted); font-size: .85rem;
+    }
+    footer span {
+      background: linear-gradient(135deg, var(--grad-start), var(--grad-end));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      font-weight: 700;
+    }
+
+    @media (max-width: 640px) {
+      .featured-card { grid-template-columns: 1fr; }
+      .featured-img { min-height: 180px; }
+      .featured-body { padding: 20px; }
+      .nav { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a href="index.html" class="logo">⚡ ElectroShop</a>
+    <nav class="nav">
+      <a href="index.html">Trang chủ</a>
+      <a href="chitiet.html">Sản phẩm</a>
+      <a href="news.html" class="active">📰 Báo</a>
+    </nav>
+    <div class="header-actions">
+      <button class="btn-icon" id="themeToggle" title="Đổi giao diện">🌙</button>
+      <button class="btn-icon" title="Giỏ hàng" onclick="location.href='cart.html'">🛒</button>
+    </div>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="news-hero">
+  <h1>📰 Tin tức & Công nghệ</h1>
+  <p>Cập nhật nhanh nhất về điện tử, gadget và thế giới công nghệ số</p>
+</section>
+
+<!-- CATEGORY TABS -->
+<div class="tabs" id="tabsContainer">
+  <button class="tab-btn active" data-cat="">🌐 Tất cả</button>
+  <button class="tab-btn" data-cat="Công nghệ">💻 Công nghệ</button>
+  <button class="tab-btn" data-cat="Sản phẩm mới">🆕 Sản phẩm mới</button>
+  <button class="tab-btn" data-cat="Khuyến mãi">🔥 Khuyến mãi</button>
+  <button class="tab-btn" data-cat="Hướng dẫn">📖 Hướng dẫn</button>
+</div>
+
+<!-- MAIN -->
+<main>
+  <div id="loadingState" class="loading">
+    <div class="spinner"></div>
+    <p>Đang tải tin tức...</p>
+  </div>
+  <div id="emptyState" class="empty-state" style="display:none;">
+    <div class="empty-icon">📭</div>
+    <h3>Chưa có tin tức nào</h3>
+    <p>Hãy vào <a href="admin.html" style="color:var(--grad-start);">trang Admin</a> để đăng bài đầu tiên!</p>
+  </div>
+  <div id="newsContent" style="display:none;">
+    <div id="featuredSection"></div>
+    <h2 class="section-title" id="gridTitle">📋 Tất cả bài viết</h2>
+    <div class="articles-grid" id="articlesGrid"></div>
+  </div>
+</main>
+
+<!-- ARTICLE MODAL -->
+<div class="modal-overlay" id="articleModal" onclick="closeModal(event)">
+  <div class="modal-box">
+    <button class="modal-close" onclick="document.getElementById('articleModal').classList.remove('open')">✕</button>
+    <div class="modal-category" id="modalCategory"></div>
+    <h2 class="modal-title" id="modalTitle"></h2>
+    <div class="modal-meta" id="modalMeta"></div>
+    <div class="modal-img" id="modalImg"></div>
+    <div class="modal-content" id="modalContent"></div>
+  </div>
+</div>
+
+<footer>
+  <p>&copy; 2025 <span>ElectroShop</span> — Tin tức điện tử mới nhất</p>
+</footer>
+
+<script src="api.js"></script>
+<script>
+  /* ===== THEME ===== */
+  const saved = localStorage.getItem('theme') || 'light';
+  document.documentElement.setAttribute('data-theme', saved);
+  document.getElementById('themeToggle').textContent = saved === 'dark' ? '☀️' : '🌙';
+  document.getElementById('themeToggle').addEventListener('click', () => {
+    const curr = document.documentElement.getAttribute('data-theme');
+    const next = curr === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('theme', next);
+    document.getElementById('themeToggle').textContent = next === 'dark' ? '☀️' : '🌙';
+  });
+
+  /* ===== STATE ===== */
+  let allArticles = [];
+  let currentCat = '';
+
+  /* ===== LOAD NEWS ===== */
+  async function loadNews(cat = '') {
+    document.getElementById('loadingState').style.display = 'block';
+    document.getElementById('newsContent').style.display = 'none';
+    document.getElementById('emptyState').style.display = 'none';
+
+    const filter = cat ? `danh_muc="${cat}"` : '';
+    const data = await API.fetchNews({ perPage: 50, filter, sort: '-created' });
+    allArticles = data.items || [];
+
+    document.getElementById('loadingState').style.display = 'none';
+
+    if (!allArticles.length) {
+      document.getElementById('emptyState').style.display = 'block';
+      return;
+    }
+
+    renderNews(allArticles);
+    document.getElementById('newsContent').style.display = 'block';
+  }
+
+  function renderNews(articles) {
+    const base = API._cachedBase || '';
+    const featuredEl = document.getElementById('featuredSection');
+    const gridEl = document.getElementById('articlesGrid');
+    const titleEl = document.getElementById('gridTitle');
+
+    featuredEl.innerHTML = '';
+    gridEl.innerHTML = '';
+
+    const [first, ...rest] = articles;
+
+    // Featured card
+    if (first) {
+      const imgHtml = buildImgHtml(first, true);
+      featuredEl.innerHTML = `
+        <div class="featured-card" onclick="openArticle('${first.id}')">
+          <div class="featured-img">${imgHtml}</div>
+          <div class="featured-body">
+            ${first.danh_muc ? `<span class="article-category">${first.danh_muc}</span>` : ''}
+            <h2>${esc(first.tieu_de || 'Không có tiêu đề')}</h2>
+            <p class="summary">${esc(first.tom_tat || first.noi_dung?.substring(0,200) || '')}</p>
+            <div class="article-meta">
+              <span>✍️ ${esc(first.tac_gia || 'Ban biên tập')}</span>
+              <span>🕒 ${fmtDate(first.created)}</span>
+            </div>
+          </div>
+        </div>`;
+    }
+
+    if (!rest.length) {
+      titleEl.style.display = 'none';
+      return;
+    }
+    titleEl.style.display = '';
+    titleEl.textContent = currentCat ? `📋 ${currentCat}` : '📋 Tất cả bài viết';
+
+    rest.forEach(a => {
+      const imgHtml = buildImgHtml(a, false);
+      const card = document.createElement('div');
+      card.className = 'article-card';
+      card.onclick = () => openArticle(a.id);
+      card.innerHTML = `
+        <div class="article-thumb">${imgHtml}</div>
+        <div class="article-body">
+          ${a.danh_muc ? `<span class="article-category" style="font-size:.7rem;padding:2px 10px;">${esc(a.danh_muc)}</span><br>` : ''}
+          <h3>${esc(a.tieu_de || 'Không có tiêu đề')}</h3>
+          <p class="summary">${esc(a.tom_tat || a.noi_dung?.substring(0,150) || '')}</p>
+          <div class="article-footer">
+            <span class="article-meta" style="font-size:.78rem;">🕒 ${fmtDate(a.created)}</span>
+            <button class="btn-read">Đọc tiếp →</button>
+          </div>
+        </div>`;
+      gridEl.appendChild(card);
+    });
+  }
+
+  async function openArticle(id) {
+    const a = allArticles.find(x => x.id === id);
+    if (!a) return;
+    const base = await API.getApiUrl();
+
+    document.getElementById('modalCategory').innerHTML =
+      a.danh_muc ? `<span class="article-category">${esc(a.danh_muc)}</span>` : '';
+    document.getElementById('modalTitle').textContent = a.tieu_de || '';
+    document.getElementById('modalMeta').innerHTML =
+      `<span>✍️ ${esc(a.tac_gia || 'Ban biên tập')}</span><span>🕒 ${fmtDate(a.created)}</span>`;
+
+    const imgEl = document.getElementById('modalImg');
+    if (a.anh && base) {
+      imgEl.innerHTML = `<img src="${API.fileUrl(base, a.collectionId, a.id, a.anh)}" alt="${esc(a.tieu_de)}" onerror="this.parentElement.innerHTML='📰'">`;
+    } else {
+      imgEl.innerHTML = '📰';
+    }
+
+    document.getElementById('modalContent').textContent = a.noi_dung || '(Không có nội dung)';
+    document.getElementById('articleModal').classList.add('open');
+  }
+
+  function closeModal(e) {
+    if (e.target === document.getElementById('articleModal'))
+      document.getElementById('articleModal').classList.remove('open');
+  }
+
+  function buildImgHtml(a, large) {
+    return a.icon ? a.icon : (large ? '📰' : '📄');
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '';
+    return new Date(iso).toLocaleDateString('vi-VN', { day:'2-digit', month:'2-digit', year:'numeric' });
+  }
+
+  function esc(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  /* ===== TABS ===== */
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentCat = btn.dataset.cat;
+      loadNews(currentCat);
+    });
+  });
+
+  loadNews();
+</script>
+<script src="bmo.js"></script>
+</body>
+</html>
