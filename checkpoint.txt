@@ -1,0 +1,248 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║              ELECTROSHOP — CHECKPOINT v1.3 FINAL                            ║
+║              Ngày: 25/03/2026 | Phiên bản: Production                       ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ LINKS QUAN TRỌNG
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  🌐 Vercel (production):     https://electroshop-ten.vercel.app
+  📦 GitHub (source code):    https://github.com/Thooooooo/electroshop
+  📦 GitHub (Pi backup):      https://github.com/Thooooooo/electroshop-pi5
+  🔗 Tunnel URL repo:         https://github.com/Thooooooo/electroshop-tunnel
+  🗄️  PocketBase Admin:        http://localhost:8090/_/   (chỉ trên Pi)
+  🔧 ElectroShop Admin:       https://electroshop-ten.vercel.app/admin.html
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ CẤU TRÚC DỰ ÁN
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  /home/tho/electroshop/
+  ├── index.html          — Trang chủ, hiển thị sản phẩm từ PocketBase
+  ├── chitiet.html        — Trang chi tiết sản phẩm
+  ├── cart.html           — Giỏ hàng (localStorage)
+  ├── checkout.html       — Thanh toán, gửi đơn về Pi qua /api/order
+  ├── news.html           — Trang báo chí, đọc collection 'tintuc'
+  ├── admin.html          — Quản trị: sản phẩm + tin tức (có mật khẩu)
+  ├── api.js              — Module dùng chung, tự chọn proxy/local
+  ├── bmo.js              — Robot tư vấn BMO (widget góc dưới phải)
+  ├── cart.js             — Logic giỏ hàng dùng chung
+  ├── vercel.json         — Cấu hình Vercel (framework: null)
+  ├── start_shop.sh       — Script khởi động + watchdog
+  ├── auto_desc.py        — Flask :5001, AI sinh mô tả (Gemini)
+  ├── pi_monitor.py       — Màn hình ST7735 hiển thị trạng thái
+  └── api/
+      ├── config.js       — Vercel Edge: kiểm tra kết nối (KHÔNG trả URL)
+      ├── products.js     — Vercel Edge: proxy GET danh sách sản phẩm
+      ├── product.js      — Vercel Edge: proxy GET sản phẩm đơn lẻ
+      ├── news.js         — Vercel Edge: proxy GET tin tức
+      └── order.js        — Vercel Edge: proxy POST đơn hàng → Flask Pi
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ KIẾN TRÚC BẢO MẬT v1.3
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  NGƯỜI DÙNG (browser)         VERCEL                    PI 5
+  ─────────────────────        ──────────────            ─────────────────
+  GET /api/products    ──────► products.js  ──────────► PocketBase :8090
+  GET /api/news        ──────► news.js      ──────────► PocketBase :8090
+  POST /api/order      ──────► order.js     ──────────► Flask :5001
+  [F12: chỉ thấy /api/*]       [URL Pi ẩn trong env]    [không bao giờ lộ]
+
+  → F12 → Network: chỉ thấy https://electroshop-ten.vercel.app/api/...
+  → Địa chỉ Pi (trycloudflare.com) không bao giờ xuất hiện trong browser
+
+  Cách xem URL Pi thật (chỉ bạn biết):
+    Terminal Pi: grep trycloudflare /tmp/cf_electroshop.log
+    Hoặc: curl -s https://api.github.com/repos/Thooooooo/electroshop-tunnel/contents/url.txt \
+            | python3 -c "import sys,json,base64; \
+              print(base64.b64decode(json.load(sys.stdin)['content']).decode())"
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ CÁCH BIẾN MÔI TRƯỜNG HOẠT ĐỘNG
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Mỗi lần Pi khởi động:
+    1. start_shop.sh chạy qua systemd
+    2. Cloudflared tạo URL ngẫu nhiên mới (vd: xxx.trycloudflare.com)
+    3. Script push URL này vào file url.txt tại repo electroshop-tunnel
+    4. Khi browser gọi /api/products, Vercel Edge Function:
+       a. Đọc url.txt từ GitHub API (không dùng CDN, luôn fresh)
+       b. Dùng URL đó để gọi PocketBase trên Pi
+       c. Trả dữ liệu về browser — không kèm URL Pi
+
+  Vercel Environment Variables (nếu có):
+    API_URL = https://xxx.trycloudflare.com
+    (Nếu set sẽ được ưu tiên hơn url.txt, dùng khi có domain cố định)
+
+  Systemd Service: /etc/systemd/system/electroshop.service
+    Environment="GITHUB_TOKEN=ghp_..."   # push url.txt
+    Environment="GEMINI_API_KEY=AIza..."  # AI mô tả
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ POCKETBASE API RULES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Vào: http://localhost:8090/_/ → chọn collection → Settings → API Rules
+
+  Collection: sanpham (sản phẩm)
+  ┌─────────────┬────────────────────────────┐
+  │ List rule   │ (để trống = mọi người xem) │
+  │ View rule   │ (để trống = mọi người xem) │
+  │ Create rule │ @request.auth.id != ""     │
+  │ Update rule │ @request.auth.id != ""     │
+  │ Delete rule │ @request.auth.id != ""     │
+  └─────────────┴────────────────────────────┘
+
+  Collection: tintuc (tin tức)
+  ┌─────────────┬────────────────────────────┐
+  │ List rule   │ (để trống = mọi người xem) │
+  │ View rule   │ (để trống = mọi người xem) │
+  │ Create rule │ @request.auth.id != ""     │
+  │ Update rule │ @request.auth.id != ""     │
+  │ Delete rule │ @request.auth.id != ""     │
+  └─────────────┴────────────────────────────┘
+
+  Lưu ý: PocketBase Superadmin (tài khoản /_/) tự động bypass tất cả rules.
+  Rule @request.auth.id != "" = "phải đăng nhập" — mà chỉ bạn có tài khoản.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ POCKETBASE COLLECTIONS — FIELDS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Collection: sanpham
+    ten       Text      — Tên sản phẩm
+    gia       Number    — Giá (VND)
+    loai      Text      — Loại/danh mục
+    mo_ta     Text      — Mô tả (AI tự sinh qua admin.html)
+    anh       File(s)   — Ảnh sản phẩm
+
+  Collection: tintuc  (cần tạo thủ công trong PocketBase)
+    tieu_de   Text      — Tiêu đề bài viết (required)
+    noi_dung  Text      — Nội dung đầy đủ  (required)
+    tom_tat   Text      — Tóm tắt ngắn
+    danh_muc  Text      — Danh mục: Công nghệ / Sản phẩm mới / Khuyến mãi / Hướng dẫn
+    tac_gia   Text      — Tác giả
+    icon      Text      — Emoji icon bài viết (📱 💻 🔥 ...)
+    anh       File      — Ảnh đại diện bài viết
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ BẢO MẬT ADMIN.HTML
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Mật khẩu mặc định: Admin@ElectroShop2025
+  Lưu trong code:    SHA-256 hash (không phải plain text)
+  Hash hiện tại:     f05813d741f2b78c49de41247dec350cf913b710aaa8ad19fcfc36dc3047a9fc
+
+  Đổi mật khẩu:
+    1. Vào https://emn178.github.io/online-tools/sha256.html
+    2. Nhập mật khẩu mới → copy hash
+    3. Mở admin.html → tìm ADMIN_HASH → thay bằng hash mới
+    4. Chạy: git add admin.html && git commit -m "update admin password" && git push vercel-origin main
+
+  Nút 🔒 trên header admin → khóa session ngay lập tức.
+  Session tự hết khi đóng tab trình duyệt.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ ROBOT BMO CHATBOT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  File: bmo.js (nhúng trong tất cả trang HTML)
+  Vị trí: góc dưới bên phải màn hình
+  Nhân vật: BMO từ Adventure Time 🎮
+  Tính năng:
+    - Quick buttons: Sản phẩm / Giao hàng / Bảo hành / Sale
+    - Trả lời tự động theo từ khóa tiếng Việt
+    - Hỗ trợ dark mode
+    - Animation bounce khi chưa mở
+    - Hỗ trợ trên mobile
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ SERVICES TRÊN PI 5
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  systemd service: electroshop.service (auto-start khi khởi động)
+    PocketBase  :8090  — Database sản phẩm & tin tức
+    Flask       :5001  — AI mô tả sản phẩm (Gemini), nhận đơn hàng
+    Cloudflared        — Tunnel công khai (URL thay đổi mỗi lần restart)
+    Watchdog           — Tự restart nếu một service bị dừng
+
+  Quản lý service:
+    sudo systemctl status electroshop
+    sudo systemctl restart electroshop
+    sudo systemctl stop electroshop
+    journalctl -u electroshop -f          # xem log realtime
+
+  Logs:
+    /tmp/pb.log       — PocketBase log
+    /tmp/flask.log    — Flask AI log
+    /tmp/cf_*.log     — Cloudflare tunnel log
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ THÊM SẢN PHẨM MỚI
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Cách 1 — Qua Admin Panel (khuyến nghị):
+    1. Vào https://electroshop-ten.vercel.app/admin.html
+    2. Nhập mật khẩu: Admin@ElectroShop2025
+    3. Nhấn nút "➕ Thêm sản phẩm" hoặc nhấn AI Auto để sinh mô tả
+
+  Cách 2 — Qua PocketBase UI:
+    1. Vào http://localhost:8090/_/
+    2. Collections → sanpham → + New record
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ THÊM BÀI VIẾT TIN TỨC
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  BƯỚC 1 (chỉ làm 1 lần): Tạo collection 'tintuc' trong PocketBase
+    1. Vào http://localhost:8090/_/ → Collections → + New collection
+    2. Đặt tên: tintuc
+    3. Thêm các fields: tieu_de (Text), noi_dung (Text), tom_tat (Text),
+       danh_muc (Text), tac_gia (Text), icon (Text), anh (File)
+    4. Lưu và thiết lập API Rules như hướng dẫn ở trên
+
+  BƯỚC 2: Đăng bài
+    1. Vào admin.html → kéo xuống "Quản lý Tin tức"
+    2. Nhấn "➕ Thêm bài mới" → điền tiêu đề, nội dung → Lưu
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ GIT WORKFLOW
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  cd /home/tho/electroshop
+
+  Push lên GitHub (backup) + Vercel (auto-deploy):
+    git add -A
+    git commit -m "mô tả thay đổi"
+    git push origin main          # → electroshop-pi5 (backup)
+    git push vercel-origin main   # → electroshop (Vercel auto-deploy)
+
+  Remote:
+    origin        = https://github.com/Thooooooo/electroshop-pi5
+    vercel-origin = https://github.com/Thooooooo/electroshop
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ NAVBAR CÁC TRANG
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Trang chủ (index.html)   → active: Trang chủ
+  Sản phẩm (chitiet.html)  → active: Sản phẩm
+  Giỏ hàng (cart.html)     → link về Trang chủ / Sản phẩm / Báo
+  Thanh toán (checkout)    → link về Trang chủ / Sản phẩm / Báo
+  Báo (news.html)          → active: 📰 Báo
+  Admin (admin.html)       → trang nội bộ, có mật khẩu
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ COMMIT HISTORY
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  v1.3  — Bảo mật: proxy ẩn Pi URL, password admin SHA-256
+  v1.2  — Tin tức news.html, BMO chatbot, navbar mới, watchdog CF tunnel
+  v1.1  — Cart.html, checkout.html, API refactor (api.js), auto tunnel URL
+  v1.0  — Khởi tạo: PocketBase, Cloudflare, Vercel deploy
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║  END OF CHECKPOINT — ElectroShop v1.3 FINAL                                 ║
+╚══════════════════════════════════════════════════════════════════════════════╝
