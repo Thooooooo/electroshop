@@ -246,3 +246,17 @@
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║  END OF CHECKPOINT — ElectroShop v1.3 FINAL                                 ║
 ╚══════════════════════════════════════════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ NHẬT KÝ HOẠT ĐỘNG (SUPER LOG)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ Format: [HH:MM DD/MM] | HÀNH ĐỘNG | FILES | TRẠNG THÁI
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[21:42 25/03] | TẠO BMO CHATBOT | bmo.js (mới), index/chitiet/cart/checkout/news.html | ✅ BMO widget xanh 🎮 góc dưới phải, animation bounce, quick buttons, trả lời 13 chủ đề, hỗ trợ dark mode. Nhúng <script src="bmo.js"> vào 5 trang. Git: commit ad6fa1c
+
+[21:45 25/03] | TẠO NEWS.HTML + ADMIN CẬP NHẬT | news.html (mới), admin.html, api.js | ✅ Trang báo chí đọc PocketBase collection 'tintuc'. Admin: xóa cloudLink hack, dùng window.API, thêm CRUD tin tức. api.js v1.2: fetchNews/createNews/updateNews/deleteNews. Navbar: thêm 📰 Báo, xóa Liên hệ. Git: commit ad6fa1c → push origin + vercel-origin
+
+[22:01 25/03] | BẢO MẬT v1.3 — PROXY + PASSWORD | api.js, api/products.js, api/news.js, api/order.js, api/product.js, api/config.js, admin.html | ✅ Pi URL ẩn hoàn toàn sau Vercel proxy. F12 chỉ thấy /api/products /api/news /api/order. admin.html: SHA-256 overlay (hash: f05813d7..., MK: Admin@ElectroShop2025). Nút 🔒 khóa session. Git: commit a351e57 → push cả 2 remote. Vercel auto-deploy thành công.
+
+[22:10 25/03] | TẠO CHECKPOINT.TXT + SUPER LOG KÍCH HOẠT | checkpoint.txt | ✅ File tóm tắt toàn bộ dự án: cấu trúc, links, rules PocketBase, bảo mật, git workflow. Git: commit 30b70b8. SUPER LOG MODE: ON — mọi thay đổi từ đây sẽ được ghi vào nhật ký này.
