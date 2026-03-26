@@ -100,7 +100,8 @@ uint8_t  g_news_count  = 0;
 
 // ── Trạng thái UI ─────────────────────────────────────────
 int           currentPage = PAGE_HOME;
-bool          needRedraw  = true;
+bool          needRedraw    = true;
+bool          partialUpdate = false;  // true = data update (không clear màn), false = đổi trang
 unsigned long lastHeaderRedraw = 0;
 unsigned long bootTime    = 0;
 String        serialBuffer = "";
@@ -145,6 +146,16 @@ void drawHeaderClock() {
   tft.setTextColor(C_LGRAY, C_HEADER);
   tft.setCursor(SCREEN_W - 55, 14);
   tft.print(g_date);
+}
+
+// Cập nhật tunnel dot trong header — không fillBar, vẽ đè lên
+void drawHeaderStatusInPlace() {
+  bool ok = (g_tunnel == "ON");
+  tft.fillCircle(215, HEADER_H/2, 7, ok ? C_GREEN : C_RED);
+  tft.setTextColor(ok ? C_GREEN : C_RED, C_HEADER);
+  tft.setTextSize(1);
+  tft.setCursor(226, HEADER_H/2 - 4);
+  tft.print(ok ? "LIVE" : "DOWN");
 }
 
 void drawHeader() {
@@ -233,6 +244,7 @@ void drawPageHome() {
   tft.setTextColor(C_LGRAY, tbg);
   String urlShow = g_tunnel_url.length() > 0 ? g_tunnel_url : "chua co tunnel URL";
   if (urlShow.length() > 52) urlShow = urlShow.substring(0, 52);
+  while (urlShow.length() < 53) urlShow += ' ';  // pad để xóa text cũ
   tft.setCursor(x+10, y+36);
   tft.print(urlShow);
 
@@ -258,6 +270,7 @@ void drawPageHome() {
     tft.print(svcs[i].lbl);
     tft.setTextSize(2);
     tft.setCursor(sx+6, y+16);
+    while (val.length() < 6) val += ' ';  // pad xóa text cũ (vd: "ON" → "OFF" dài hơn)
     tft.print(val);
   }
 
@@ -277,21 +290,28 @@ void drawPageHome() {
     tft.setTextSize(1);
     String nm = g_orders[0].name;
     if (nm.length() > 34) nm = nm.substring(0, 34) + "..";
+    while (nm.length() < 38) nm += ' ';  // pad để xóa text cũ
     tft.setCursor(x, y);
     tft.print(nm);
     tft.setTextColor(C_YELLOW, C_BG);
     tft.setCursor(x + 270, y);
-    tft.print(g_orders[0].price + "d");
+    String pr = g_orders[0].price + "d";
+    while (pr.length() < 14) pr += ' ';
+    tft.print(pr);
     y += 14;
     tft.setTextColor(C_GRAY, C_BG);
     tft.setCursor(x, y);
     String inf = "KH: " + g_orders[0].buyer + "   " + g_orders[0].age + " truoc";
     if (inf.length() > 58) inf = inf.substring(0, 58);
+    while (inf.length() < 60) inf += ' ';  // pad
     tft.print(inf);
   } else {
     tft.setTextColor(C_GRAY, C_BG);
     tft.setCursor(x, y);
-    tft.print("Chua co don hang nao...");
+    tft.print("Chua co don hang nao...                   ");
+    y += 14;
+    tft.setCursor(x, y);
+    tft.print("                                          ");
   }
 }
 
@@ -546,7 +566,10 @@ void drawCurrentPage() {
     drawNavBar();
     return;
   }
-  fillBar(0, CONTENT_Y+2, SCREEN_W, CONTENT_H, C_BG);
+  // Chỉ clear content area khi đổi trang — data update vẽ đè lên (không flash)
+  if (!partialUpdate) {
+    fillBar(0, CONTENT_Y+2, SCREEN_W, CONTENT_H, C_BG);
+  }
   switch (currentPage) {
     case PAGE_HOME:   drawPageHome();   break;
     case PAGE_ORDERS: drawPageOrders(); break;
@@ -559,10 +582,16 @@ void drawCurrentPage() {
 }
 
 void fullRedraw() {
-  // Không dùng fillScreen (gây nháy toàn màn hình)
-  // drawHeader() fill header bar, drawCurrentPage() fill content area — không flash
-  drawHeader();
+  if (partialUpdate) {
+    // Data update: không fillBar header — chỉ cập nhật status dot + clock tại chỗ
+    drawHeaderStatusInPlace();
+    drawHeaderClock();
+  } else {
+    // Đổi trang hoặc khởi tạo: vẽ lại full header
+    drawHeader();
+  }
   drawCurrentPage();
+  partialUpdate = false;
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -626,11 +655,9 @@ void parseJson(String& raw) {
     }
   }
 
-  needRedraw = true;
+  needRedraw    = true;
+  partialUpdate = true;   // data update — vẽ đè, không clear màn
 }
-
-// ═══════════════════════════════════════════════════════════
-//  SETUP
 // ═══════════════════════════════════════════════════════════
 void setup() {
   Serial.begin(115200);
