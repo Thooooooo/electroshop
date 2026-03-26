@@ -20,6 +20,12 @@
 #include <TFT_eSPI.h>
 #include <ArduinoJson.h>
 #include <SPI.h>
+#include <FS.h>
+#include <LittleFS.h>
+#include <WiFi.h>
+using namespace fs;   // required before WebServer.h in ESP32 Arduino core 3.x
+#include <WebServer.h>
+#include <Preferences.h>
 
 TFT_eSPI tft = TFT_eSPI();
 
@@ -56,7 +62,9 @@ TFT_eSPI tft = TFT_eSPI();
 #define PAGE_ORDERS 1
 #define PAGE_NEWS   2
 #define PAGE_STATS  3
-#define NUM_PAGES   4
+#define PAGE_GAMES  4
+#define PAGE_WIFI   5
+#define NUM_PAGES   6
 
 // ── Touch calibration (chạy sketch calibration nếu lệch) ─
 uint16_t calData[5] = { 275, 3620, 264, 3532, 3 };  // swapXY + invertX
@@ -96,6 +104,11 @@ bool          needRedraw  = true;
 unsigned long lastHeaderRedraw = 0;
 unsigned long bootTime    = 0;
 String        serialBuffer = "";
+
+// ── Custom headers (sau tất cả #define) ───────────────────
+#include "web_editor.h"
+#include "wifi_page.h"
+#include "games_page.h"
 
 // ═══════════════════════════════════════════════════════════
 //  HELPERS
@@ -170,27 +183,25 @@ void drawHeader() {
 //  NAV BAR
 // ═══════════════════════════════════════════════════════════
 void drawNavBar() {
-  const char* names[4] = { "HOME", "ORDERS", "NEWS", "STATS" };
-  const uint16_t accents[4] = { C_CYAN, C_ORANGE, C_GREEN, C_MAGENTA };
+  const char* names[6] = { "HOME", "ORDERS", "NEWS", "STATS", "GAMES", "WIFI" };
+  const uint16_t accents[6] = { C_CYAN, C_ORANGE, C_GREEN, C_MAGENTA, C_YELLOW, 0x07BF };
 
   fillBar(0, NAV_Y, SCREEN_W, NAV_H, 0x0821);
   tft.drawFastHLine(0, NAV_Y, SCREEN_W, C_GRAY);
 
-  int bw = SCREEN_W / NUM_PAGES;
+  int bw = SCREEN_W / NUM_PAGES;  // 80px mỗi tab
   for (int i = 0; i < NUM_PAGES; i++) {
     int bx = i * bw;
     bool active = (i == currentPage);
     uint16_t bg = active ? 0x1062 : 0x0821;
 
     fillBar(bx+1, NAV_Y+1, bw-2, NAV_H-2, bg);
-
-    // Accent bar trên top khi active
     if (active) tft.drawFastHLine(bx, NAV_Y, bw, accents[i]);
 
     tft.setTextColor(active ? accents[i] : C_GRAY, bg);
-    tft.setTextSize(active ? 2 : 1);
-    int fw = strlen(names[i]) * (active ? 12 : 6);
-    tft.setCursor(bx + (bw - fw)/2, NAV_Y + (active ? 14 : 18));
+    tft.setTextSize(1);
+    int fw = strlen(names[i]) * 6;
+    tft.setCursor(bx + (bw - fw)/2, NAV_Y + (NAV_H - 8)/2);
     tft.print(names[i]);
 
     if (i > 0) tft.drawFastVLine(bx, NAV_Y+4, NAV_H-8, 0x2104);
@@ -530,12 +541,19 @@ void drawPageStats() {
 //  FULL REDRAW
 // ═══════════════════════════════════════════════════════════
 void drawCurrentPage() {
+  // Games dùng full screen riêng, không dùng content area chuẩn
+  if (currentPage == PAGE_GAMES && currentGame >= 0) {
+    drawNavBar();
+    return;
+  }
   fillBar(0, CONTENT_Y+2, SCREEN_W, CONTENT_H, C_BG);
   switch (currentPage) {
     case PAGE_HOME:   drawPageHome();   break;
     case PAGE_ORDERS: drawPageOrders(); break;
     case PAGE_NEWS:   drawPageNews();   break;
     case PAGE_STATS:  drawPageStats();  break;
+    case PAGE_GAMES:  drawPageGames();  break;
+    case PAGE_WIFI:   drawPageWifi();   break;
   }
   drawNavBar();
 }
@@ -627,6 +645,10 @@ void setup() {
 
   bootTime = millis();
 
+  // Init WiFi + Web server + LittleFS
+  initWebServer();
+  initWifi();
+
   // Splash screen
   tft.setTextColor(C_CYAN, C_BG);
   tft.setTextSize(3);
@@ -650,7 +672,16 @@ void setup() {
 //  LOOP
 // ═══════════════════════════════════════════════════════════
 void loop() {
-  // Đọc Serial (JSON newline-terminated)
+  // Web server handler
+  handleWebServer();
+
+  // WiFi state machine (connecting animation, timeout)
+  wifiTick();
+
+  // Game loop ticks (non-blocking)
+  gameTick();
+
+  // Read Serial (JSON newline-terminated)
   while (Serial.available()) {
     char c = Serial.read();
     if (c == '\n') {
@@ -664,23 +695,34 @@ void loop() {
     }
   }
 
-  // Touch — chuyển trang
+  // Touch handling
   uint16_t tx, ty;
   if (tft.getTouch(&tx, &ty)) {
     delay(25);
     if (tft.getTouch(&tx, &ty)) {
-      if (ty >= NAV_Y) {
+      // While a game is running: route all touches to games handler
+      if (currentPage == PAGE_GAMES && currentGame >= 0) {
+        handleGamesTouch(tx, ty);
+        while (tft.getTouch(&tx, &ty)) delay(10);
+      } else if (ty >= NAV_Y) {
+        // Nav bar tap -> switch page (exit game if needed)
         int newPage = (int)tx / (SCREEN_W / NUM_PAGES);
         if (newPage >= 0 && newPage < NUM_PAGES && newPage != currentPage) {
           currentPage = newPage;
+          currentGame = -1;
           needRedraw = true;
         }
+        while (tft.getTouch(&tx, &ty)) delay(10);
+      } else {
+        // Content area touch
+        if (currentPage == PAGE_GAMES)       handleGamesTouch(tx, ty);
+        else if (currentPage == PAGE_WIFI)   handleWifiTouch(tx, ty);
+        while (tft.getTouch(&tx, &ty)) delay(10);
       }
-      while (tft.getTouch(&tx, &ty)) delay(10);
     }
   }
 
-  // Vẽ lại khi có dữ liệu mới
+  // Redraw when new data received
   if (needRedraw) {
     fullRedraw();
     needRedraw = false;
@@ -688,10 +730,9 @@ void loop() {
     return;
   }
 
-  // Cập nhật đồng hồ mỗi giây — chỉ vẽ vùng giờ (không flicker)
-  if (millis() - lastHeaderRedraw >= 1000) {
+  // Update clock every second (skip when a game is running to avoid flicker)
+  if (currentGame < 0 && millis() - lastHeaderRedraw >= 1000) {
     drawHeaderClock();
-    // STATS page có uptime → redraw nếu đang ở đó
     if (currentPage == PAGE_STATS) {
       drawPageStats();
       drawNavBar();
