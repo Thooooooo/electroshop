@@ -559,7 +559,8 @@ void drawCurrentPage() {
 }
 
 void fullRedraw() {
-  tft.fillScreen(C_BG);
+  // Không dùng fillScreen (gây nháy toàn màn hình)
+  // drawHeader() fill header bar, drawCurrentPage() fill content area — không flash
   drawHeader();
   drawCurrentPage();
 }
@@ -730,13 +731,9 @@ void loop() {
     return;
   }
 
-  // Update clock every second (skip when a game is running to avoid flicker)
+  // Update clock every second — chỉ cập nhật đồng hồ, không redraw page (tránh nháy)
   if (currentGame < 0 && millis() - lastHeaderRedraw >= 1000) {
-    drawHeaderClock();
-    if (currentPage == PAGE_STATS) {
-      drawPageStats();
-      drawNavBar();
-    }
+    drawHeaderClock();   // partial update, không fillRect toàn màn
     lastHeaderRedraw = millis();
   }
 }
