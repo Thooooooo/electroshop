@@ -102,6 +102,10 @@ uint8_t  g_news_count  = 0;
 int           currentPage = PAGE_HOME;
 bool          needRedraw    = true;
 bool          partialUpdate = false;  // true = data update (không clear màn), false = đổi trang
+// State cache để chỉ redraw HOME cards khi status thực sự thay đổi
+String        prev_tunnel = "", prev_flask = "", prev_pb = "", prev_tunnel_url = "";
+int           prev_order_count = -1;
+String        prev_order_name = "", prev_order_price = "";
 unsigned long lastHeaderRedraw = 0;
 unsigned long bootTime    = 0;
 String        serialBuffer = "";
@@ -225,93 +229,111 @@ void drawNavBar() {
 void drawPageHome() {
   int x = 8, y = CONTENT_Y + 6;
 
-  // ── Tunnel status card ──
-  bool tunnelOk = (g_tunnel == "ON");
-  uint16_t tbg = tunnelOk ? 0x0320 : 0x5000;
-  uint16_t tfg = tunnelOk ? C_GREEN : C_RED;
+  bool statusChanged = (g_tunnel != prev_tunnel || g_flask != prev_flask ||
+                        g_pb != prev_pb || g_tunnel_url != prev_tunnel_url);
+  bool ordersChanged = (g_order_count != prev_order_count ||
+                        (g_order_count > 0 && (g_orders[0].name != prev_order_name ||
+                                               g_orders[0].price != prev_order_price)));
 
-  fillBar(x, y, SCREEN_W - 16, 54, tbg);
-  tft.drawRect(x, y, SCREEN_W - 16, 54, tfg);
+  // Khi đổi trang (partialUpdate=false) → vẽ tất cả
+  // Khi data update → chỉ vẽ lại phần thực sự thay đổi
+  bool forceAll = !partialUpdate;
 
-  tft.setTextColor(tfg, tbg);
-  tft.setTextSize(2);
-  tft.setCursor(x+10, y+6);
-  tft.print("TUNNEL ");
-  tft.print(tunnelOk ? "ONLINE  " : "OFFLINE ");
-  tft.fillCircle(x + SCREEN_W - 36, y+27, 10, tfg);
+  // ── Tunnel status card — chỉ redraw khi tunnel/url thay đổi ──
+  if (forceAll || statusChanged) {
+    bool tunnelOk = (g_tunnel == "ON");
+    uint16_t tbg = tunnelOk ? 0x0320 : 0x5000;
+    uint16_t tfg = tunnelOk ? C_GREEN : C_RED;
 
-  tft.setTextSize(1);
-  tft.setTextColor(C_LGRAY, tbg);
-  String urlShow = g_tunnel_url.length() > 0 ? g_tunnel_url : "chua co tunnel URL";
-  if (urlShow.length() > 52) urlShow = urlShow.substring(0, 52);
-  while (urlShow.length() < 53) urlShow += ' ';  // pad để xóa text cũ
-  tft.setCursor(x+10, y+36);
-  tft.print(urlShow);
-
-  y += 62;
-
-  // ── Service status row ──
-  struct { const char* lbl; String* val; uint16_t color; } svcs[3] = {
-    { "Flask :5001",  &g_flask, C_CYAN   },
-    { "PocketBase",   &g_pb,    C_GREEN  },
-    { "Vercel",       nullptr,  C_PURPLE },
-  };
-  int sw = (SCREEN_W - 16) / 3 - 4;
-  for (int i = 0; i < 3; i++) {
-    int sx = x + i*(sw+6);
-    String val = (i < 2) ? *svcs[i].val : "LIVE";
-    bool svcOk = (val == "ON" || val == "LIVE");
-    uint16_t sbg = svcOk ? 0x0280 : 0x4000;
-    fillBar(sx, y, sw, 36, sbg);
-    tft.drawRect(sx, y, sw, 36, svcs[i].color);
-    tft.setTextColor(svcs[i].color, sbg);
-    tft.setTextSize(1);
-    tft.setCursor(sx+6, y+4);
-    tft.print(svcs[i].lbl);
+    fillBar(x, y, SCREEN_W - 16, 54, tbg);
+    tft.drawRect(x, y, SCREEN_W - 16, 54, tfg);
+    tft.setTextColor(tfg, tbg);
     tft.setTextSize(2);
-    tft.setCursor(sx+6, y+16);
-    while (val.length() < 6) val += ' ';  // pad xóa text cũ (vd: "ON" → "OFF" dài hơn)
-    tft.print(val);
+    tft.setCursor(x+10, y+6);
+    tft.print(tunnelOk ? "TUNNEL ONLINE   " : "TUNNEL OFFLINE  ");
+    tft.fillCircle(x + SCREEN_W - 36, y+27, 10, tfg);
+    tft.setTextSize(1);
+    tft.setTextColor(C_LGRAY, tbg);
+    String urlShow = g_tunnel_url.length() > 0 ? g_tunnel_url : "chua co tunnel URL";
+    if (urlShow.length() > 52) urlShow = urlShow.substring(0, 52);
+    while (urlShow.length() < 53) urlShow += ' ';
+    tft.setCursor(x+10, y+36);
+    tft.print(urlShow);
+
+    // ── Service status row ──
+    struct { const char* lbl; String* val; uint16_t color; } svcs[3] = {
+      { "Flask :5001",  &g_flask, C_CYAN   },
+      { "PocketBase",   &g_pb,    C_GREEN  },
+      { "Vercel",       nullptr,  C_PURPLE },
+    };
+    int sw = (SCREEN_W - 16) / 3 - 4;
+    int sy = y + 62;
+    for (int i = 0; i < 3; i++) {
+      int sx = x + i*(sw+6);
+      String val = (i < 2) ? *svcs[i].val : "LIVE";
+      bool svcOk = (val == "ON" || val == "LIVE");
+      uint16_t sbg = svcOk ? 0x0280 : 0x4000;
+      fillBar(sx, sy, sw, 36, sbg);
+      tft.drawRect(sx, sy, sw, 36, svcs[i].color);
+      tft.setTextColor(svcs[i].color, sbg);
+      tft.setTextSize(1);
+      tft.setCursor(sx+6, sy+4);
+      tft.print(svcs[i].lbl);
+      tft.setTextSize(2);
+      tft.setCursor(sx+6, sy+16);
+      while (val.length() < 6) val += ' ';
+      tft.print(val);
+    }
+
+    prev_tunnel     = g_tunnel;
+    prev_flask      = g_flask;
+    prev_pb         = g_pb;
+    prev_tunnel_url = g_tunnel_url;
   }
 
-  y += 44;
+  y += 62 + 44;  // qua tunnel card + service row
 
-  // ── Đơn hàng mới nhất ──
-  tft.drawFastHLine(x, y, SCREEN_W-16, 0x2104);
-  y += 6;
-  tft.setTextColor(C_ORANGE, C_BG);
-  tft.setTextSize(1);
-  tft.setCursor(x, y);
-  tft.print("DON HANG MOI NHAT:");
-  y += 14;
-
-  if (g_order_count > 0) {
-    tft.setTextColor(C_WHITE, C_BG);
+  // ── Đơn hàng mới nhất — chỉ redraw khi orders thay đổi ──
+  if (forceAll || ordersChanged) {
+    tft.drawFastHLine(x, y, SCREEN_W-16, 0x2104);
+    int oy = y + 6;
+    tft.setTextColor(C_ORANGE, C_BG);
     tft.setTextSize(1);
-    String nm = g_orders[0].name;
-    if (nm.length() > 34) nm = nm.substring(0, 34) + "..";
-    while (nm.length() < 38) nm += ' ';  // pad để xóa text cũ
-    tft.setCursor(x, y);
-    tft.print(nm);
-    tft.setTextColor(C_YELLOW, C_BG);
-    tft.setCursor(x + 270, y);
-    String pr = g_orders[0].price + "d";
-    while (pr.length() < 14) pr += ' ';
-    tft.print(pr);
-    y += 14;
-    tft.setTextColor(C_GRAY, C_BG);
-    tft.setCursor(x, y);
-    String inf = "KH: " + g_orders[0].buyer + "   " + g_orders[0].age + " truoc";
-    if (inf.length() > 58) inf = inf.substring(0, 58);
-    while (inf.length() < 60) inf += ' ';  // pad
-    tft.print(inf);
-  } else {
-    tft.setTextColor(C_GRAY, C_BG);
-    tft.setCursor(x, y);
-    tft.print("Chua co don hang nao...                   ");
-    y += 14;
-    tft.setCursor(x, y);
-    tft.print("                                          ");
+    tft.setCursor(x, oy);
+    tft.print("DON HANG MOI NHAT:");
+    oy += 14;
+
+    if (g_order_count > 0) {
+      tft.setTextColor(C_WHITE, C_BG);
+      String nm = g_orders[0].name;
+      if (nm.length() > 34) nm = nm.substring(0, 34) + "..";
+      while (nm.length() < 38) nm += ' ';
+      tft.setCursor(x, oy);
+      tft.print(nm);
+      tft.setTextColor(C_YELLOW, C_BG);
+      tft.setCursor(x + 270, oy);
+      String pr = g_orders[0].price + "d";
+      while (pr.length() < 14) pr += ' ';
+      tft.print(pr);
+      oy += 14;
+      tft.setTextColor(C_GRAY, C_BG);
+      tft.setCursor(x, oy);
+      String inf = "KH: " + g_orders[0].buyer + "   " + g_orders[0].age + " truoc";
+      if (inf.length() > 58) inf = inf.substring(0, 58);
+      while (inf.length() < 60) inf += ' ';
+      tft.print(inf);
+    } else {
+      tft.setTextColor(C_GRAY, C_BG);
+      tft.setCursor(x, oy);
+      tft.print("Chua co don hang nao...                   ");
+      oy += 14;
+      tft.setCursor(x, oy);
+      tft.print("                                          ");
+    }
+
+    prev_order_count = g_order_count;
+    prev_order_name  = g_order_count > 0 ? g_orders[0].name  : "";
+    prev_order_price = g_order_count > 0 ? g_orders[0].price : "";
   }
 }
 
@@ -578,7 +600,10 @@ void drawCurrentPage() {
     case PAGE_GAMES:  drawPageGames();  break;
     case PAGE_WIFI:   drawPageWifi();   break;
   }
-  drawNavBar();
+  // Nav bar không thay đổi khi chỉ có data mới — bỏ qua để không flash
+  if (!partialUpdate) {
+    drawNavBar();
+  }
 }
 
 void fullRedraw() {
@@ -738,7 +763,10 @@ void loop() {
         if (newPage >= 0 && newPage < NUM_PAGES && newPage != currentPage) {
           currentPage = newPage;
           currentGame = -1;
-          needRedraw = true;
+          // Reset state cache → đổi trang luôn vẽ full
+          prev_tunnel = ""; prev_flask = ""; prev_pb = "";
+          prev_tunnel_url = ""; prev_order_count = -1;
+          needRedraw = true;   // partialUpdate = false → full redraw
         }
         while (tft.getTouch(&tx, &ty)) delay(10);
       } else {

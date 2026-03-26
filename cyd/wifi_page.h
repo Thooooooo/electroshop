@@ -261,53 +261,65 @@ void drawPageWifi() {
 
         redrawPasswordField();
 
+        static const char numRow[] = "1234567890";
         static const char row0[] = "QWERTYUIOP";
         static const char row1[] = "ASDFGHJKL";
         static const char row2[] = "ZXCVBNM";
-        const int keyW = 44, keyH = 30;
+        const int keyW = 44, keyH = 26;   // nhỏ hơn một chút để vừa 5 hàng
 
-        // Row 0 -- y = kbStartY
+        // Hàng số -- y = kbStartY
         for (int k = 0; k < 10; k++) {
             int kx = 4 + k * 48, ky = kbStartY;
+            tft.fillRect(kx, ky, keyW, keyH, 0x1062);
+            tft.drawRect(kx, ky, keyW, keyH, C_CYAN);
+            tft.setTextColor(C_CYAN, 0x1062);
+            tft.setTextSize(2);
+            tft.setCursor(kx + 14, ky + 5);
+            tft.print(numRow[k]);
+        }
+
+        // QWERTY -- y = kbStartY+30
+        for (int k = 0; k < 10; k++) {
+            int kx = 4 + k * 48, ky = kbStartY + 30;
             tft.fillRect(kx, ky, keyW, keyH, C_HEADER);
             tft.drawRect(kx, ky, keyW, keyH, C_GRAY);
             tft.setTextColor(C_WHITE, C_HEADER);
             tft.setTextSize(2);
-            tft.setCursor(kx + 14, ky + 7);
+            tft.setCursor(kx + 14, ky + 5);
             tft.print(row0[k]);
         }
 
-        // Row 1 -- y = kbStartY+34
+        // ASDFGHJKL -- y = kbStartY+60
         for (int k = 0; k < 9; k++) {
-            int kx = 28 + k * 48, ky = kbStartY + 34;
+            int kx = 28 + k * 48, ky = kbStartY + 60;
             tft.fillRect(kx, ky, keyW, keyH, C_HEADER);
             tft.drawRect(kx, ky, keyW, keyH, C_GRAY);
             tft.setTextColor(C_WHITE, C_HEADER);
             tft.setTextSize(2);
-            tft.setCursor(kx + 14, ky + 7);
+            tft.setCursor(kx + 14, ky + 5);
             tft.print(row1[k]);
         }
 
-        // Row 2 -- y = kbStartY+68
+        // ZXCVBNM -- y = kbStartY+90
         for (int k = 0; k < 7; k++) {
-            int kx = 76 + k * 48, ky = kbStartY + 68;
+            int kx = 76 + k * 48, ky = kbStartY + 90;
             tft.fillRect(kx, ky, keyW, keyH, C_HEADER);
             tft.drawRect(kx, ky, keyW, keyH, C_GRAY);
             tft.setTextColor(C_WHITE, C_HEADER);
             tft.setTextSize(2);
-            tft.setCursor(kx + 14, ky + 7);
+            tft.setCursor(kx + 14, ky + 5);
             tft.print(row2[k]);
         }
 
-        // Bottom row -- y = kbStartY+102
-        int bRowY = kbStartY + 102;
+        // Bottom row -- y = kbStartY+120
+        int bRowY = kbStartY + 120;
 
         // SPACE  x=4, w=180
         tft.fillRect(4, bRowY, 180, keyH, C_HEADER);
         tft.drawRect(4, bRowY, 180, keyH, C_GRAY);
         tft.setTextColor(C_WHITE, C_HEADER);
         tft.setTextSize(2);
-        tft.setCursor(62, bRowY + 7);
+        tft.setCursor(62, bRowY + 5);
         tft.print("SPACE");
 
         // BKSP  x=186, w=160
@@ -315,7 +327,7 @@ void drawPageWifi() {
         tft.drawRect(186, bRowY, 160, keyH, C_ORANGE);
         tft.setTextColor(C_ORANGE, C_HEADER);
         tft.setTextSize(2);
-        tft.setCursor(218, bRowY + 7);
+        tft.setCursor(218, bRowY + 5);
         tft.print("BKSP");
 
         // CONNECT  x=348, w=128
@@ -323,7 +335,7 @@ void drawPageWifi() {
         tft.drawRect(348, bRowY, 128, keyH, C_GREEN);
         tft.setTextColor(C_GREEN, C_DKGREEN);
         tft.setTextSize(1);
-        tft.setCursor(364, bRowY + 11);
+        tft.setCursor(364, bRowY + 9);
         tft.print("CONNECT");
 
     // -- WPS_CONNECTING -------------------------------------------------------
@@ -480,6 +492,7 @@ void handleWifiTouch(uint16_t tx, uint16_t ty) {
 
     // -- KEYBOARD -------------------------------------------------------------
     } else if (wpsState == WPS_KEYBOARD) {
+        static const char numRow[] = "1234567890";
         static const char row0[] = "QWERTYUIOP";
         static const char row1[] = "ASDFGHJKL";
         static const char row2[] = "ZXCVBNM";
@@ -491,8 +504,20 @@ void handleWifiTouch(uint16_t tx, uint16_t ty) {
             return;
         }
 
-        // Row 0: y in [kbStartY, kbStartY+32)
-        if (ty >= (uint16_t)kbStartY && ty < (uint16_t)(kbStartY + 32)) {
+        // Hàng số: y in [kbStartY, kbStartY+28)
+        if (ty >= (uint16_t)kbStartY && ty < (uint16_t)(kbStartY + 28)) {
+            for (int k = 0; k < 10; k++) {
+                int kx = 4 + k * 48;
+                if (tx >= (uint16_t)kx && tx < (uint16_t)(kx + 44)) {
+                    if (wifiPassword.length() < 63) wifiPassword += numRow[k];
+                    redrawPasswordField();
+                    return;
+                }
+            }
+        }
+
+        // QWERTY: y in [kbStartY+30, kbStartY+58)
+        if (ty >= (uint16_t)(kbStartY + 30) && ty < (uint16_t)(kbStartY + 58)) {
             for (int k = 0; k < 10; k++) {
                 int kx = 4 + k * 48;
                 if (tx >= (uint16_t)kx && tx < (uint16_t)(kx + 44)) {
@@ -503,8 +528,8 @@ void handleWifiTouch(uint16_t tx, uint16_t ty) {
             }
         }
 
-        // Row 1: y in [kbStartY+34, kbStartY+66)
-        if (ty >= (uint16_t)(kbStartY + 34) && ty < (uint16_t)(kbStartY + 66)) {
+        // ASDFGHJKL: y in [kbStartY+60, kbStartY+88)
+        if (ty >= (uint16_t)(kbStartY + 60) && ty < (uint16_t)(kbStartY + 88)) {
             for (int k = 0; k < 9; k++) {
                 int kx = 28 + k * 48;
                 if (tx >= (uint16_t)kx && tx < (uint16_t)(kx + 44)) {
@@ -515,8 +540,8 @@ void handleWifiTouch(uint16_t tx, uint16_t ty) {
             }
         }
 
-        // Row 2: y in [kbStartY+68, kbStartY+100)
-        if (ty >= (uint16_t)(kbStartY + 68) && ty < (uint16_t)(kbStartY + 100)) {
+        // ZXCVBNM: y in [kbStartY+90, kbStartY+118)
+        if (ty >= (uint16_t)(kbStartY + 90) && ty < (uint16_t)(kbStartY + 118)) {
             for (int k = 0; k < 7; k++) {
                 int kx = 76 + k * 48;
                 if (tx >= (uint16_t)kx && tx < (uint16_t)(kx + 44)) {
@@ -527,8 +552,8 @@ void handleWifiTouch(uint16_t tx, uint16_t ty) {
             }
         }
 
-        // Bottom row: y in [kbStartY+102, kbStartY+134)
-        if (ty >= (uint16_t)(kbStartY + 102) && ty < (uint16_t)(kbStartY + 134)) {
+        // Bottom row: y in [kbStartY+120, kbStartY+148)
+        if (ty >= (uint16_t)(kbStartY + 120) && ty < (uint16_t)(kbStartY + 148)) {
             if (tx < 186) {
                 if (wifiPassword.length() < 63) wifiPassword += ' ';
                 redrawPasswordField();
