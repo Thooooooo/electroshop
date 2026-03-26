@@ -59,7 +59,7 @@ TFT_eSPI tft = TFT_eSPI();
 #define NUM_PAGES   4
 
 // ── Touch calibration (chạy sketch calibration nếu lệch) ─
-uint16_t calData[5] = { 275, 3620, 264, 3532, 1 };
+uint16_t calData[5] = { 275, 3620, 264, 3532, 3 };  // swapXY + invertX
 
 // ── Dữ liệu nhận từ Pi ───────────────────────────────────
 struct Order {
@@ -122,6 +122,18 @@ uint16_t pctColor(int pct) {
 // ═══════════════════════════════════════════════════════════
 //  HEADER (cập nhật mỗi giây)
 // ═══════════════════════════════════════════════════════════
+// Chỉ vẽ lại vùng giờ/ngày — không xóa cả header (tránh nhấp nháy)
+void drawHeaderClock() {
+  tft.setTextColor(C_YELLOW, C_HEADER);
+  tft.setTextSize(2);
+  tft.setCursor(SCREEN_W - 108, 8);
+  tft.print(g_time);
+  tft.setTextSize(1);
+  tft.setTextColor(C_LGRAY, C_HEADER);
+  tft.setCursor(SCREEN_W - 55, 14);
+  tft.print(g_date);
+}
+
 void drawHeader() {
   fillBar(0, 0, SCREEN_W, HEADER_H, C_HEADER);
 
@@ -676,9 +688,9 @@ void loop() {
     return;
   }
 
-  // Cập nhật header mỗi giây (đồng hồ chạy liên tục)
+  // Cập nhật đồng hồ mỗi giây — chỉ vẽ vùng giờ (không flicker)
   if (millis() - lastHeaderRedraw >= 1000) {
-    drawHeader();
+    drawHeaderClock();
     // STATS page có uptime → redraw nếu đang ở đó
     if (currentPage == PAGE_STATS) {
       drawPageStats();
