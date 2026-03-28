@@ -1,4 +1,4 @@
-// Vercel Edge Function – Proxy /api/products → PocketBase (Pi ẩn hoàn toàn)
+// Vercel Edge Function – Proxy /api/products → Flask v2 API (Pi ẩn hoàn toàn)
 // Browser chỉ thấy /api/products — không bao giờ thấy địa chỉ Pi
 export const config = { runtime: 'edge' };
 
@@ -13,17 +13,38 @@ async function getPiUrl() {
   return atob(data.content.replace(/\n/g, '')).trim();
 }
 
+// Chuẩn hoá Flask API response → format {items, totalItems} để frontend dùng chung
+function normalizeFlaskProducts(raw, piUrl) {
+  const arr = Array.isArray(raw) ? raw : (raw.products || []);
+  const items = arr.map(p => ({
+    id:          p.id,
+    ten:         p.name  || p.ten  || '',
+    mota:        p.description || p.mota || '',
+    loai:        p.category || p.loai || '',
+    gia:         typeof p.gia === 'number' ? p.gia
+                   : (parseFloat(String(p.price || '0').replace(/[^\d.]/g, '')) || 0),
+    icon:        p.icon || '📦',
+    // Ảnh Flask: /static/uploads/<filename>; ảnh PocketBase: dùng fileUrl()
+    anh_url:     p.image ? `${piUrl}/static/uploads/${p.image}` : '',
+    _source:     'flask',
+  }));
+  return { items, totalItems: items.length };
+}
+
 export default async function handler(req) {
   try {
     const piUrl = process.env.API_URL || await getPiUrl();
-    const { searchParams } = new URL(req.url);
 
-    // Forward query params (page, perPage, filter, sort, expand)
-    const target = `${piUrl}/api/collections/sanpham/records?${searchParams}`;
-    const upstream = await fetch(target, { headers: { 'Content-Type': 'application/json' } });
-    const data = await upstream.json();
+    const upstream = await fetch(`${piUrl}/api/products`, {
+      headers: { 'User-Agent': 'ElectroShop-Vercel' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!upstream.ok) throw new Error(`upstream ${upstream.status}`);
 
-    return Response.json(data, {
+    const raw = await upstream.json();
+    const normalized = normalizeFlaskProducts(raw, piUrl);
+
+    return Response.json(normalized, {
       headers: {
         'Cache-Control': 'no-store',
         'Access-Control-Allow-Origin': '*',

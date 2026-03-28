@@ -347,8 +347,23 @@
       const icon  = iconForItem(item);
       const name  = item.name || item.ten || '(No name)';
       const desc  = item.mota || item.description || '';
-      const price = item.gia ? item.gia.toLocaleString('vi-VN') + '₫' : '';
-      return makeCard(id, icon, name, desc, price);
+      // Hỗ trợ cả Flask (gia là số, price là chuỗi) lẫn PocketBase (gia là số)
+      let price = '';
+      if (item.gia) {
+        price = Number(item.gia).toLocaleString('vi-VN') + '₫';
+      } else if (item.price) {
+        const num = parseFloat(String(item.price).replace(/[^\d.]/g, ''));
+        price = isNaN(num) ? item.price : num.toLocaleString('vi-VN') + '₫';
+      }
+      // Ảnh: Flask dùng anh_url, PocketBase dùng fileUrl()
+      let imgHtml = `<div class="product-img">${icon}</div>`;
+      if (item.anh_url) {
+        imgHtml = `<div class="product-img" style="padding:0;overflow:hidden"><img src="${item.anh_url}" alt="${name}" loading="lazy" style="width:100%;height:100%;object-fit:cover;border-radius:inherit" onerror="this.parentElement.innerHTML='${icon}'"></div>`;
+      } else if (item.anh && item.anh.length > 0) {
+        const imgSrc = API.fileUrl(API.isLocal ? `http://${location.hostname}:8090` : '', item.collectionId, item.id, item.anh[0], '300x300');
+        imgHtml = `<div class="product-img" style="padding:0;overflow:hidden"><img src="${imgSrc}" alt="${name}" loading="lazy" style="width:100%;height:100%;object-fit:cover;border-radius:inherit" onerror="this.parentElement.innerHTML='${icon}'"></div>`;
+      }
+      return makeCardWithImg(id, imgHtml, icon, name, desc, price);
     }).join('');
   }
 
