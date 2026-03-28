@@ -199,6 +199,13 @@
       font-weight: 700;
     }
 
+    /* ===== SEARCH IN HEADER ===== */
+    #searchInput:focus {
+      border-color: #a78bfa;
+      background: rgba(255,255,255,.25);
+      box-shadow: 0 0 0 3px rgba(167,139,250,.4);
+    }
+
     /* ===== RESPONSIVE ===== */
     @media (max-width: 640px) {
       .nav { display: none; }
@@ -212,14 +219,19 @@
 <header>
   <div class="header-inner">
     <div class="logo">⚡ ElectroShop</div>
+    <input id="searchInput" type="text" placeholder="🔍 Tìm sản phẩm..."
+           oninput="filterProducts(this.value)"
+           style="flex:1;max-width:440px;padding:8px 18px;border-radius:999px;
+                  border:2px solid transparent;background:rgba(255,255,255,.15);
+                  color:#fff;font-size:.9rem;outline:none;transition:.2s;
+                  box-shadow:none;">
     <nav class="nav">
-      <a href="index.html" class="active">Trang chủ</a>
-      <a href="chitiet.html">Sản phẩm</a>
-      <a href="news.html">📰 Báo</a>
+      <a href="index.html" class="active">🏪 Cửa hàng</a>
+      <a href="news.html">📰 Tin tức</a>
+      <a href="cart.html">🛒 Giỏ</a>
     </nav>
     <div class="header-actions">
-      <button class="btn-icon" id="themeToggle" title="Đổi giao diện">🌙</button>
-      <button class="btn-icon" id="cartBtn" title="Giỏ hàng" onclick="location.href='cart.html'">🛒<span id="cartBadge" style="display:none;position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;border-radius:999px;font-size:.65rem;font-weight:700;padding:1px 5px;"></span></button>
+      <button class="btn-icon" onclick="toggleTheme()">🌙</button>
     </div>
   </div>
 </header>
@@ -244,9 +256,6 @@
   <div id="products">
     <h2 class="section-title">🏪 Sản phẩm nổi bật</h2>
     <p class="section-sub">Hàng chính hãng – Bảo hành 12–24 tháng</p>
-    <input id="searchInput" type="text" placeholder="🔍 Tìm sản phẩm..."
-      style="width:100%;padding:12px 18px;border-radius:999px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:1rem;margin-bottom:28px;outline:none;box-shadow:var(--shadow);transition:border .2s;"
-      oninput="filterProducts(this.value)">
     <div class="products-grid" id="productsGrid">
       <!-- Cards injected by JS -->
     </div>
@@ -275,6 +284,14 @@
       <div class="feature-desc">Đổi trả miễn phí trong 30 ngày</div>
     </div>
   </div>
+
+  <!-- News Section -->
+  <section id="news-section" style="max-width:1200px;margin:40px auto;padding:0 16px">
+    <h2 style="font-size:1.4rem;font-weight:700;margin-bottom:16px">📰 Tin tức mới nhất</h2>
+    <div id="newsGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
+      <!-- loaded by JS -->
+    </div>
+  </section>
 
 </main>
 
@@ -369,7 +386,6 @@
   function filterProducts(query) {
     const q = query.trim().toLowerCase();
     document.querySelectorAll('#productsGrid .product-card').forEach(card => {
-      // Ưu tiên data-s attribute, fallback sang innerText
       const text = (card.dataset.s || card.innerText).toLowerCase();
       card.style.display = (!q || text.includes(q)) ? '' : 'none';
     });
@@ -383,28 +399,53 @@
     document.getElementById('products').scrollIntoView({ behavior: 'smooth' });
   }
 
-  /* ---- Dark / Light Mode ---- */
-  const themeToggle = document.getElementById('themeToggle');
-  function applyTheme(theme) {
-    document.documentElement.setAttribute('data-theme', theme);
-    themeToggle.textContent = theme === 'dark' ? '☀️' : '🌙';
-    localStorage.setItem('es-theme', theme);
+  /* ---- News section ---- */
+  async function loadNews() {
+    try {
+      const data = await API.fetchNews({ perPage: 6 });
+      const items = data.items || [];
+      if (!items.length) return;
+      document.getElementById('newsGrid').innerHTML = items.map(n => `
+        <a href="news.html?id=${n.id}" style="background:var(--surface);border-radius:var(--radius);
+           border:1px solid var(--border);box-shadow:var(--shadow);overflow:hidden;
+           text-decoration:none;color:var(--text);display:block;transition:.2s"
+           onmouseover="this.style.transform='translateY(-3px)'"
+           onmouseout="this.style.transform=''">
+          <div style="height:120px;background:linear-gradient(135deg,#ede9fe,#ddd6fe);
+               display:flex;align-items:center;justify-content:center;font-size:2.5rem">📰</div>
+          <div style="padding:14px">
+            <div style="font-weight:700;margin-bottom:6px;font-size:.97rem">${n.title}</div>
+            <div style="font-size:.83rem;color:var(--muted)">${n.subtitle||''}</div>
+            <div style="font-size:.75rem;color:var(--muted);margin-top:8px">${new Date(n.created).toLocaleDateString('vi-VN')}</div>
+          </div>
+        </a>`).join('');
+    } catch(e) { console.warn('News load failed:', e); }
   }
 
-  themeToggle.addEventListener('click', () => {
+  /* ---- Dark / Light Mode ---- */
+  function toggleTheme() {
     const current = document.documentElement.getAttribute('data-theme');
-    applyTheme(current === 'dark' ? 'light' : 'dark');
-  });
-
-  const saved = localStorage.getItem('es-theme');
-  if (saved) {
-    applyTheme(saved);
-  } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    applyTheme('dark');
+    const next = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    const btn = document.querySelector('.btn-icon[onclick]');
+    if (btn) btn.textContent = next === 'dark' ? '☀️' : '🌙';
+    localStorage.setItem('es-theme', next);
   }
 
   /* ---- Init ---- */
+  (function() {
+    const saved = localStorage.getItem('es-theme');
+    if (saved) {
+      document.documentElement.setAttribute('data-theme', saved);
+      const btn = document.querySelector('.btn-icon[onclick]');
+      if (btn) btn.textContent = saved === 'dark' ? '☀️' : '🌙';
+    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
+  })();
+
   loadProducts();
+  loadNews();
 </script>
 <script src="cart.js"></script>
 <script src="bmo.js"></script>
