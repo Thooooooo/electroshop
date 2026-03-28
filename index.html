@@ -303,17 +303,7 @@
 <!-- ===== JAVASCRIPT ===== -->
 <script src="api.js"></script>
 <script>
-  /* ---- Hardcoded fallback data ---- */
-  const FALLBACK_PRODUCTS = [
-    { id: 1, icon: '📱', name: 'iPhone 15 Pro Max', desc: 'Chip A17 Pro, camera 48MP, Dynamic Island', price: '29.990.000₫' },
-    { id: 2, icon: '💻', name: 'MacBook Air M3', desc: 'Apple M3, RAM 16GB, SSD 512GB', price: '32.990.000₫' },
-    { id: 3, icon: '⌚', name: 'Apple Watch S9', desc: 'Màn hình luôn sáng, S9 SiP, GPS', price: '10.990.000₫' },
-    { id: 4, icon: '🎧', name: 'AirPods Pro 2', desc: 'ANC thế hệ 2, USB-C, Adaptive Audio', price: '6.490.000₫' },
-    { id: 5, icon: '📷', name: 'Sony A7 IV', desc: 'Full-frame 33MP, 4K 60fps, AF nhanh', price: '65.990.000₫' },
-    { id: 6, icon: '🖥️', name: 'Samsung OLED 55"', desc: 'OLED 4K, 120Hz, Smart TV 2024', price: '28.990.000₫' },
-    { id: 7, icon: '🎮', name: 'PlayStation 5 Slim', desc: 'PS5 Slim, SSD 1TB, DualSense', price: '13.990.000₫' },
-    { id: 8, icon: '🔋', name: 'iPad Pro M4', desc: 'M4 chip, OLED 11", WiFi 6E', price: '24.990.000₫' },
-  ];
+  /* ---- Không dùng dữ liệu mẫu — hiện lỗi thật nếu mất kết nối ---- */
 
   /* ---- Icon helper ---- */
   function iconForItem(item) {
@@ -362,23 +352,32 @@
     }).join('');
   }
 
-  /* ---- Render hardcoded fallback ---- */
-  function renderHardcoded() {
+  /* ---- Hiển thị lỗi mất kết nối thay vì đồ giả ---- */
+  function renderError(msg) {
     const grid = document.getElementById('productsGrid');
-    grid.innerHTML = FALLBACK_PRODUCTS.map(p =>
-      makeCard(p.id, p.icon, p.name, p.desc, p.price)
-    ).join('');
+    grid.innerHTML = `
+      <div style="grid-column:1/-1;text-align:center;padding:48px 16px;color:#ef4444">
+        <div style="font-size:3rem;margin-bottom:12px">⚠️</div>
+        <div style="font-size:1.2rem;font-weight:700;margin-bottom:8px">Mất kết nối Pi 5</div>
+        <div style="font-size:.9rem;color:#6b7280">${msg || 'Không thể tải sản phẩm từ Pi 5. Vui lòng thử lại.'}</div>
+        <button onclick="loadProducts()" style="margin-top:16px;padding:10px 24px;background:#6366f1;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.9rem">🔄 Thử lại</button>
+      </div>`;
   }
 
   /* ---- Load products from API ---- */
   async function loadProducts() {
+    const grid = document.getElementById('productsGrid');
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:48px;color:#6b7280">⏳ Đang kết nối Pi 5...</div>`;
     try {
       const data = await API.fetchProducts({ perPage: 50, sort: '-created' });
       const items = data.items || [];
-      if (items.length === 0) { renderHardcoded(); return; }
+      if (items.length === 0) {
+        renderError('Pi 5 trả về 0 sản phẩm.');
+        return;
+      }
       renderFromApi(items);
     } catch (e) {
-      renderHardcoded();
+      renderError(e.message);
     }
   }
 
