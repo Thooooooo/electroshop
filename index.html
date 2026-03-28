@@ -141,6 +141,9 @@
       box-shadow: var(--shadow);
       transition: all var(--transition);
       cursor: pointer;
+      text-decoration: none;
+      color: var(--text);
+      display: block;
     }
     .product-card:hover { transform: translateY(-6px); box-shadow: 0 12px 40px rgba(37,99,235,.18); }
     .product-img {
@@ -221,8 +224,8 @@
   </div>
 </header>
 
-<!-- ===== MAIN ===== -->
-<main>
+<!-- ===== HERO ===== -->
+<section class="hero">
   <div class="hero-content">
     <div class="hero-badge">🔥 Flash Sale – Giảm đến 50%</div>
     <h1>Điện tử chính hãng<br>Giá tốt nhất thị trường</h1>
@@ -241,6 +244,9 @@
   <div id="products">
     <h2 class="section-title">🏪 Sản phẩm nổi bật</h2>
     <p class="section-sub">Hàng chính hãng – Bảo hành 12–24 tháng</p>
+    <input id="searchInput" type="text" placeholder="🔍 Tìm sản phẩm..."
+      style="width:100%;padding:12px 18px;border-radius:999px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:1rem;margin-bottom:28px;outline:none;box-shadow:var(--shadow);transition:border .2s;"
+      oninput="filterProducts(this.value)">
     <div class="products-grid" id="productsGrid">
       <!-- Cards injected by JS -->
     </div>
@@ -278,9 +284,10 @@
 </footer>
 
 <!-- ===== JAVASCRIPT ===== -->
+<script src="api.js"></script>
 <script>
-  /* ---- Product Data ---- */
-  const PRODUCTS = [
+  /* ---- Hardcoded fallback data ---- */
+  const FALLBACK_PRODUCTS = [
     { id: 1, icon: '📱', name: 'iPhone 15 Pro Max', desc: 'Chip A17 Pro, camera 48MP, Dynamic Island', price: '29.990.000₫' },
     { id: 2, icon: '💻', name: 'MacBook Air M3', desc: 'Apple M3, RAM 16GB, SSD 512GB', price: '32.990.000₫' },
     { id: 3, icon: '⌚', name: 'Apple Watch S9', desc: 'Màn hình luôn sáng, S9 SiP, GPS', price: '10.990.000₫' },
@@ -291,26 +298,85 @@
     { id: 8, icon: '🔋', name: 'iPad Pro M4', desc: 'M4 chip, OLED 11", WiFi 6E', price: '24.990.000₫' },
   ];
 
-  /* ---- Render Products ---- */
-  function renderProducts() {
-    const grid = document.getElementById('productsGrid');
-    grid.innerHTML = PRODUCTS.map(p => `
-      <div class="product-card" onclick="goDetail(${p.id})">
-        <div class="product-img">${p.icon}</div>
+  /* ---- Icon helper ---- */
+  function iconForItem(item) {
+    if (item.icon) return item.icon;
+    const loai = (item.loai || item.category || '').toLowerCase();
+    const name = (item.name || item.ten || '').toLowerCase();
+    if (loai.includes('phone') || name.includes('iphone') || name.includes('điện thoại')) return '📱';
+    if (loai.includes('laptop') || name.includes('macbook') || name.includes('laptop')) return '💻';
+    if (loai.includes('watch') || name.includes('watch') || name.includes('đồng hồ')) return '⌚';
+    if (loai.includes('audio') || name.includes('airpod') || name.includes('tai nghe')) return '🎧';
+    if (loai.includes('camera') || name.includes('camera') || name.includes('máy ảnh')) return '📷';
+    if (loai.includes('tv') || name.includes('samsung') || name.includes('tivi')) return '🖥️';
+    if (loai.includes('game') || name.includes('playstation') || name.includes('xbox')) return '🎮';
+    if (loai.includes('tablet') || name.includes('ipad') || name.includes('máy tính bảng')) return '🔋';
+    return '📦';
+  }
+
+  /* ---- Render a card ---- */
+  function makeCard(id, icon, name, desc, price) {
+    // Dùng thẻ <a href> thay onclick để tránh proxy/Cloudflare can thiệp điều hướng
+    return `
+      <a class="product-card" href="chitiet.html?id=${id}"
+         data-s="${(name+' '+desc).toLowerCase()}">
+        <div class="product-img">${icon}</div>
         <div class="product-info">
-          <div class="product-name">${p.name}</div>
-          <div class="product-desc">${p.desc}</div>
+          <div class="product-name">${name}</div>
+          <div class="product-desc">${desc}</div>
           <div class="product-footer">
-            <div class="product-price">${p.price}</div>
-            <button class="btn-detail" onclick="event.stopPropagation();goDetail(${p.id})">Chi tiết →</button>
+            <div class="product-price">${price}</div>
+            <span class="btn-detail">Chi tiết →</span>
           </div>
         </div>
-      </div>
-    `).join('');
+      </a>`;
+  }
+
+  /* ---- Render from API items ---- */
+  function renderFromApi(items) {
+    const grid = document.getElementById('productsGrid');
+    grid.innerHTML = items.map(item => {
+      const id    = item.id;
+      const icon  = iconForItem(item);
+      const name  = item.name || item.ten || '(No name)';
+      const desc  = item.mota || item.description || '';
+      const price = item.gia ? item.gia.toLocaleString('vi-VN') + '₫' : '';
+      return makeCard(id, icon, name, desc, price);
+    }).join('');
+  }
+
+  /* ---- Render hardcoded fallback ---- */
+  function renderHardcoded() {
+    const grid = document.getElementById('productsGrid');
+    grid.innerHTML = FALLBACK_PRODUCTS.map(p =>
+      makeCard(p.id, p.icon, p.name, p.desc, p.price)
+    ).join('');
+  }
+
+  /* ---- Load products from API ---- */
+  async function loadProducts() {
+    try {
+      const data = await API.fetchProducts({ perPage: 50, sort: '-created' });
+      const items = data.items || [];
+      if (items.length === 0) { renderHardcoded(); return; }
+      renderFromApi(items);
+    } catch (e) {
+      renderHardcoded();
+    }
+  }
+
+  /* ---- Live search filter ---- */
+  function filterProducts(query) {
+    const q = query.trim().toLowerCase();
+    document.querySelectorAll('#productsGrid .product-card').forEach(card => {
+      // Ưu tiên data-s attribute, fallback sang innerText
+      const text = (card.dataset.s || card.innerText).toLowerCase();
+      card.style.display = (!q || text.includes(q)) ? '' : 'none';
+    });
   }
 
   function goDetail(id) {
-    window.location.href = `chitiet.html?id=${id}`;
+    window.location.href = 'chitiet.html?id=' + id;
   }
 
   function scrollToProducts() {
@@ -330,7 +396,6 @@
     applyTheme(current === 'dark' ? 'light' : 'dark');
   });
 
-  // Restore saved theme or follow system
   const saved = localStorage.getItem('es-theme');
   if (saved) {
     applyTheme(saved);
@@ -339,9 +404,8 @@
   }
 
   /* ---- Init ---- */
-  renderProducts();
+  loadProducts();
 </script>
-<script src="api.js"></script>
 <script src="cart.js"></script>
 <script src="bmo.js"></script>
 </body>

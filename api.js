@@ -20,8 +20,13 @@
     /^192\.168\.|^10\.|^172\.(1[6-9]|2\d|3[01])\./.test(location.hostname)
   );
 
-  const LOCAL_PB   = 'http://localhost:8090';   // PocketBase trực tiếp (chỉ Pi)
-  const LOCAL_FLASK = 'http://localhost:5001';  // Flask AI (chỉ Pi)
+  // Dùng hostname thực của Pi thay vì 'localhost' để iPad/điện thoại trên LAN
+  // cũng kết nối được — 'localhost:8090' chỉ đúng khi chính Pi tự duyệt web.
+  const _host      = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+                       ? 'localhost'
+                       : location.hostname;
+  const LOCAL_PB   = `http://${_host}:8090`;   // PocketBase — đúng với mọi thiết bị trên LAN
+  const LOCAL_FLASK = `http://${_host}:5001`;  // Flask AI
 
   /* ─────────────── Xây URL file ảnh ─────────────── */
   function fileUrl(base, collectionId, recordId, filename, thumb) {
