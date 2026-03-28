@@ -1,4 +1,6 @@
-Checkpoint: 2026-03-28 16:58
-Tunnel: https://snowboard-intersection-motels-poster.trycloudflare.com
+Checkpoint: 2026-03-28 22:49
+Tunnel: https://stomach-skating-days-therapy.trycloudflare.com
 API: Flask v2 port 8888 (v2.db)
 Products: Arduino Uno R3, Luckfox Pico Mini A, Luckfox Pico RV1103
+url.txt (electroshop-tunnel repo): Updated to stomach-skating-days-therapy
+Status: Vercel proxy → url.txt → Flask 8888 → 3 products OK
