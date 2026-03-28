@@ -1,33 +1,28 @@
-// Vercel Edge Function – Proxy /api/news → PocketBase tintuc collection
+// Vercel Edge Function – Proxy /api/news → Flask v2 (news not yet implemented → empty)
 export const config = { runtime: 'edge' };
 
-async function getPiUrl() {
-  const GITHUB_API = 'https://api.github.com/repos/Thooooooo/electroshop-tunnel/contents/url.txt';
-  const res = await fetch(GITHUB_API, {
-    headers: { 'User-Agent': 'ElectroShop-Proxy' },
-    cache: 'no-store',
-  });
-  if (!res.ok) throw new Error(`GitHub ${res.status}`);
-  const data = await res.json();
-  return atob(data.content.replace(/\n/g, '')).trim();
-}
+// URL tunnel Cloudflare → Flask v2 port 8888 trên Pi
+const PI_URL = process.env.API_URL || 'https://stomach-skating-days-therapy.trycloudflare.com';
 
 export default async function handler(req) {
   try {
-    const piUrl = process.env.API_URL || await getPiUrl();
     const { searchParams } = new URL(req.url);
 
-    const target = `${piUrl}/api/collections/tintuc/records?${searchParams}`;
-    const upstream = await fetch(target, { headers: { 'Content-Type': 'application/json' } });
+    // Thử gọi Flask /api/news nếu có, fallback về empty
+    const upstream = await fetch(`${PI_URL}/api/news?${searchParams}`, {
+      headers: { 'User-Agent': 'ElectroShop-Vercel' },
+      signal: AbortSignal.timeout(5000),
+    }).catch(() => null);
 
-    if (!upstream.ok) {
-      // tintuc collection might not exist yet
-      if (upstream.status === 404) return Response.json({ items: [], totalItems: 0 });
-      throw new Error(`Upstream ${upstream.status}`);
+    if (upstream && upstream.ok) {
+      const data = await upstream.json();
+      return Response.json(data, {
+        headers: { 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' },
+      });
     }
-    const data = await upstream.json();
 
-    return Response.json(data, {
+    // Flask chưa có /api/news → trả mảng rỗng, không báo lỗi
+    return Response.json({ items: [], totalItems: 0 }, {
       headers: { 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' },
     });
   } catch (e) {
@@ -35,3 +30,4 @@ export default async function handler(req) {
     return Response.json({ items: [], totalItems: 0 });
   }
 }
+

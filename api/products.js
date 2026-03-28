@@ -2,16 +2,8 @@
 // Browser chỉ thấy /api/products — không bao giờ thấy địa chỉ Pi
 export const config = { runtime: 'edge' };
 
-async function getPiUrl() {
-  const GITHUB_API = 'https://api.github.com/repos/Thooooooo/electroshop-tunnel/contents/url.txt';
-  const res = await fetch(GITHUB_API, {
-    headers: { 'User-Agent': 'ElectroShop-Proxy' },
-    cache: 'no-store',
-  });
-  if (!res.ok) throw new Error(`GitHub ${res.status}`);
-  const data = await res.json();
-  return atob(data.content.replace(/\n/g, '')).trim();
-}
+// URL tunnel Cloudflare → Flask v2 port 8888 trên Pi
+const PI_URL = process.env.API_URL || 'https://stomach-skating-days-therapy.trycloudflare.com';
 
 // Chuẩn hoá Flask API response → format {items, totalItems} để frontend dùng chung
 function normalizeFlaskProducts(raw, piUrl) {
@@ -33,7 +25,7 @@ function normalizeFlaskProducts(raw, piUrl) {
 
 export default async function handler(req) {
   try {
-    const piUrl = process.env.API_URL || await getPiUrl();
+    const piUrl = PI_URL;
 
     const upstream = await fetch(`${piUrl}/api/products`, {
       headers: { 'User-Agent': 'ElectroShop-Vercel' },
