@@ -2,7 +2,7 @@
 export const config = { runtime: 'edge' };
 
 // URL tunnel Cloudflare → Flask v2 port 8888 trên Pi
-const PI_URL = process.env.API_URL || 'https://stomach-skating-days-therapy.trycloudflare.com';
+const PI_URL = process.env.API_URL || 'https://pros-cases-postposted-accompanying.trycloudflare.com';
 
 export default async function handler(req) {
   try {
@@ -15,13 +15,14 @@ export default async function handler(req) {
     }).catch(() => null);
 
     if (upstream && upstream.ok) {
-      const data = await upstream.json();
-      return Response.json(data, {
+      const raw = await upstream.json();
+      // Flask trả mảng thô [...] — cần convert sang PocketBase format {items, totalItems}
+      const items = Array.isArray(raw) ? raw : (raw.items || []);
+      return Response.json({ items, totalItems: items.length }, {
         headers: { 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' },
       });
     }
 
-    // Flask chưa có /api/news → trả mảng rỗng, không báo lỗi
     return Response.json({ items: [], totalItems: 0 }, {
       headers: { 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' },
     });
