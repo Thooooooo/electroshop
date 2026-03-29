@@ -168,10 +168,11 @@ nav{position:sticky;top:0;z-index:300;background:linear-gradient(135deg,#1a1040 
 .news-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px}
 .news-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;transition:all .25s;cursor:pointer}
 .news-card:hover{transform:translateY(-4px);box-shadow:0 16px 40px rgba(108,59,255,0.12);border-color:rgba(108,59,255,0.25)}
-.news-thumb{width:100%;height:160px;overflow:hidden;background:#f3f4f6;position:relative}
-.news-thumb img{width:100%;height:100%;object-fit:cover;transition:transform .3s}
-.news-card:hover .news-thumb img{transform:scale(1.06)}
-.news-thumb-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:linear-gradient(135deg,#ede9fe,#dbeafe)}
+.news-thumb{width:100%;height:180px;overflow:hidden;background:#f3f4f6;position:relative}
+.news-thumb img{width:100%;height:100%;object-fit:cover;transition:transform .4s ease;display:block}
+.news-card:hover .news-thumb img{transform:scale(1.08)}
+.news-thumb-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2.8rem;background:linear-gradient(135deg,#ede9fe,#dbeafe)}
+.news-summary{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;color:#6b7280;font-size:.88rem;line-height:1.55;margin-top:6px}
 .news-body{padding:16px}
 .news-tag{display:inline-block;font-size:0.68rem;font-weight:700;padding:3px 9px;border-radius:99px;background:rgba(108,59,255,0.1);color:var(--primary);margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px}
 .news-title{font-weight:700;font-size:0.92rem;line-height:1.45;margin-bottom:8px;color:var(--text);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -1466,7 +1467,7 @@ function renderNews(items) {
   grid.innerHTML = items.map((n, i) => {
     const title = n.title || n.tieu_de || n.name || 'Bài viết mới';
     const summary = n.summary || n.tom_tat || n.description || n.content || '';
-    const thumb = n.cover || n.anh_url || n.image || n.thumb || '';
+    const thumb = n.cover || n.image_url || n.anh_url || n.image || n.thumb || '';
     const tag = n.category || n.danh_muc || 'Công nghệ';
     const date = n.created_at ? new Date(n.created_at).toLocaleDateString('vi-VN') : 'Hôm nay';
     return `<div class="news-card" onclick="window.open('news.html','_self')">

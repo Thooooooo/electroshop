@@ -760,9 +760,14 @@ def api_delete_news(nid):
 def api_news():
     with get_db() as c:
         rows = c.execute(
-            'SELECT id, title, summary, author, created_at, cover FROM news ORDER BY created_at DESC'
+            'SELECT id, title, summary, content, author, created_at, cover FROM news ORDER BY created_at DESC'
         ).fetchall()
-    return jsonify([dict(r) for r in rows])
+    result = []
+    for r in rows:
+        item = dict(r)
+        item['image_url'] = item.get('cover', '')   # alias cho frontend dễ dùng
+        result.append(item)
+    return jsonify(result)
 
 
 @app.route('/health')
