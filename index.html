@@ -164,7 +164,22 @@ nav{position:sticky;top:0;z-index:300;background:linear-gradient(135deg,#1a1040 
 .search-suggestion-tag{background:#f3f4f6;border:none;font-family:inherit;font-size:0.8rem;font-weight:600;color:var(--text);padding:6px 14px;border-radius:99px;cursor:pointer;transition:all .15s}
 .search-suggestion-tag:hover{background:rgba(108,59,255,0.1);color:var(--primary)}
 
-/* BACK BUTTON */
+/* NEWS */
+.news-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:20px}
+.news-card{background:var(--white);border-radius:var(--radius);border:1px solid var(--border);overflow:hidden;transition:all .25s;cursor:pointer}
+.news-card:hover{transform:translateY(-4px);box-shadow:0 16px 40px rgba(108,59,255,0.12);border-color:rgba(108,59,255,0.25)}
+.news-thumb{width:100%;height:160px;overflow:hidden;background:#f3f4f6;position:relative}
+.news-thumb img{width:100%;height:100%;object-fit:cover;transition:transform .3s}
+.news-card:hover .news-thumb img{transform:scale(1.06)}
+.news-thumb-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:2.5rem;background:linear-gradient(135deg,#ede9fe,#dbeafe)}
+.news-body{padding:16px}
+.news-tag{display:inline-block;font-size:0.68rem;font-weight:700;padding:3px 9px;border-radius:99px;background:rgba(108,59,255,0.1);color:var(--primary);margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px}
+.news-title{font-weight:700;font-size:0.92rem;line-height:1.45;margin-bottom:8px;color:var(--text);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.news-summary{font-size:0.8rem;color:var(--muted);line-height:1.6;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;margin-bottom:12px}
+.news-meta{display:flex;align-items:center;gap:8px;font-size:0.72rem;color:var(--muted)}
+.news-loading{grid-column:1/-1;text-align:center;padding:48px;color:var(--muted);font-size:0.9rem}
+@media(max-width:768px){.news-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.news-grid{grid-template-columns:1fr}}
 .back-btn{background:none;border:1px solid var(--border);border-radius:8px;width:36px;height:36px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--muted);transition:all .2s;flex-shrink:0}
 .back-btn:hover{border-color:var(--primary);color:var(--primary);background:rgba(108,59,255,0.05)}
 
@@ -652,10 +667,21 @@ footer{background:var(--dark);padding:56px 0 24px}
     </div>
   </section>
 
+  <!-- ===== TIN TỨC ===== -->
+  <section class="section" style="padding-top:0" id="news-section">
+    <div class="container">
+      <div class="section-head center">
+        <h2>Tin Tức Mới Nhất</h2>
+        <p>Cập nhật kiến thức điện tử và công nghệ mới nhất</p>
+      </div>
+      <div class="news-grid" id="newsGrid">
+        <div class="news-loading">📡 Đang tải tin tức từ Pi 5...</div>
+      </div>
+    </div>
+  </section>
+
   <div class="container">
     <div class="newsletter">
-      <div style="width:56px;height:56px;background:rgba(255,255,255,.2);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 16px"><svg width="26" height="26" style="color:#fff"><use href="#ic-mail"/></svg></div>
-      <h2>Đăng Ký Nhận Tin</h2><p>Nhận thông tin sản phẩm mới và ưu đãi đặc biệt</p>
       <div class="nl-form"><input class="nl-input" placeholder="Nhập email của bạn"/><button class="nl-btn" onclick="showToast('Đăng ký thành công!')">Đăng ký ngay</button></div>
       <div class="nl-tags">
         <span class="nl-tag"><svg width="13" height="13" style="color:rgba(255,255,255,.9)"><use href="#ic-check"/></svg>Ưu đãi độc quyền</span>
@@ -1414,11 +1440,56 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { closeModal(); closeUserDropdown(); }
 });
 
+// ===== NEWS =====
+async function loadNews() {
+  try {
+    const res = await fetch(`${PB_URL}/api/news`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const items = (Array.isArray(data) ? data : (data.items || [])).slice(0, 4);
+    renderNews(items);
+  } catch(e) {
+    console.error('Lỗi tải tin tức:', e);
+    document.getElementById('newsGrid').innerHTML =
+      '<div class="news-loading">📡 Đang tải tin tức từ Pi 5...</div>';
+  }
+}
+
+function renderNews(items) {
+  const grid = document.getElementById('newsGrid');
+  if (!grid) return;
+  if (!items.length) {
+    grid.innerHTML = '<div class="news-loading">📡 Đang tải tin tức từ Pi 5...</div>';
+    return;
+  }
+  const icons = ['📰','🔧','💡','🚀'];
+  grid.innerHTML = items.map((n, i) => {
+    const title = n.tieu_de || n.title || n.name || 'Bài viết mới';
+    const summary = n.tom_tat || n.summary || n.description || n.content || '';
+    const thumb = n.anh_url || n.image || n.thumb || '';
+    const tag = n.danh_muc || n.category || 'Công nghệ';
+    const date = n.ngay || n.created_at ? new Date(n.ngay || n.created_at).toLocaleDateString('vi-VN') : '';
+    return `<div class="news-card" onclick="window.open('news.html','_self')">
+      <div class="news-thumb">${thumb
+        ? `<img src="${thumb}" alt="${title}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
+        : ''
+      }<div class="news-thumb-placeholder" style="${thumb?'display:none':'display:flex'}">${icons[i%4]}</div></div>
+      <div class="news-body">
+        <span class="news-tag">${tag}</span>
+        <div class="news-title">${title}</div>
+        <div class="news-summary">${summary}</div>
+        <div class="news-meta">📅 ${date || 'Hôm nay'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 // ===== INIT =====
 renderProducts();
 updateBadge();
 renderNavUser();
 loadProducts();
+loadNews();
 </script>
 
 </body>
