@@ -289,6 +289,7 @@ footer{background:var(--dark);padding:56px 0 24px}
 .free-ship{color:var(--accent2);font-weight:700}
 .btn-checkout{width:100%;background:linear-gradient(135deg,var(--primary),var(--accent2));color:#fff;border:none;border-radius:99px;padding:14px;font-size:0.95rem;font-weight:800;cursor:pointer;margin-top:16px;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px}
 .btn-checkout:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(108,59,255,0.35)}
+.btn-checkout:disabled{opacity:.4;cursor:not-allowed;transform:none!important;box-shadow:none!important;filter:grayscale(.3)}
 .btn-clear{width:100%;background:none;border:1px solid #ef4444;color:#ef4444;border-radius:99px;padding:10px;font-size:0.85rem;font-weight:700;cursor:pointer;margin-top:8px;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:6px}
 .btn-clear:hover{background:#ef4444;color:#fff}
 .sec-note{margin-top:14px;padding:10px 12px;background:#f8f7ff;border-radius:10px;font-size:0.75rem;color:var(--muted);display:flex;gap:8px;align-items:flex-start;line-height:1.5}
@@ -869,6 +870,7 @@ function _showPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
   if (name === 'cart') renderCart();
+  else stopPayPoll();
   try { window.scrollTo({top:0, behavior:'smooth'}); } catch(e) {}
   closeDropdown();
   document.getElementById('fabBack').classList.toggle('visible', name !== 'home');
@@ -1290,7 +1292,7 @@ function renderCart() {
             <div class="sum-row"><span>Thuế VAT (10%)</span><span>${fmtPrice(vat)}</span></div>
             <div class="sum-row"><span>Vận chuyển</span><span class="${ship===0?'free-ship':''}">${ship===0?'Miễn phí':fmtPrice(ship)}</span></div>
             <div class="sum-row total"><span>Tổng cộng</span><span>${fmtPrice(total)}</span></div>
-            <button class="btn-checkout" onclick="checkout()">
+            <button class="btn-checkout" id="btnCheckout" disabled onclick="checkout()">
               <svg width="17" height="17"><use href="#ic-lock" stroke="#fff"/></svg>Tiến hành thanh toán
             </button>
             <button class="btn-clear" onclick="clearCart()">
@@ -1302,16 +1304,15 @@ function renderCart() {
                 Thanh toán QR Code
               </div>
               <div class="qr-pay-body">
-                <img class="qr-img"
-                  src="https://img.vietqr.io/image/MB-0987654321-compact2.png?amount=${total}&addInfo=ElectroShop&accountName=NGUYEN%20VAN%20THO"
-                  onerror="this.src='https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=ElectroShop+${total}'"
+                <img class="qr-img" id="qrImgCart"
+                  src="https://img.vietqr.io/image/STB-0355020289-compact2.png?amount=${total}&addInfo=ElectroShop&accountName=DO%20THI%20THU%20HA"
                   alt="QR thanh toán"/>
                 <div class="qr-bank-info">
-                  <div class="qr-bank">🏦 MB Bank</div>
-                  <div class="qr-account">0987 654 321</div>
-                  <div class="qr-holder">NGUYEN VAN THO</div>
-                  <div class="qr-amount">${fmtPrice(total)}</div>
-                  <div class="qr-msg">Nội dung: <b>ElectroShop</b></div>
+                  <div class="qr-bank">🏦 Sacombank</div>
+                  <div class="qr-account" id="qrAccNoCart">0355 020 289</div>
+                  <div class="qr-holder">DO THI THU HA</div>
+                  <div class="qr-amount" id="qrAmtCart">${fmtPrice(total)}</div>
+                  <div class="qr-msg" id="qrMsgCart">Nội dung: <b>Đang tạo mã...</b></div>
                 </div>
               </div>
             </div>
@@ -1323,14 +1324,94 @@ function renderCart() {
         </div>
       </div>
     </div>`;
+  initPayment(total);
 }
 
-function checkout() {
-  showToast('Đặt hàng thành công! Cảm ơn bạn!');
-  cart = {};
-  saveCart();
-  updateBadge();
-  setTimeout(() => renderCart(), 2000);
+async function checkout() {
+  const btn = document.getElementById('btnCheckout');
+  if (!btn || btn.disabled) return;
+  btn.disabled = true;
+  btn.innerHTML = '<svg width="17" height="17"><use href="#ic-lock" stroke="#fff"/></svg>Đang xác nhận...';
+  try {
+    const r = await fetch(`${PB_URL}/api/deliver`, {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({orderId: _payOrderId})
+    });
+    const d = await r.json();
+    if (d.success) {
+      stopPayPoll();
+      showToast('🎉 Đặt hàng thành công! Cảm ơn bạn!');
+      cart = {}; saveCart(); updateBadge();
+      setTimeout(() => renderCart(), 2000);
+    } else {
+      showToast('Lỗi: ' + (d.message || 'Thử lại!'));
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="17" height="17"><use href="#ic-lock" stroke="#fff"/></svg>Tiến hành thanh toán';
+    }
+  } catch(e) {
+    showToast('Lỗi kết nối server');
+    btn.disabled = false;
+    btn.innerHTML = '<svg width="17" height="17"><use href="#ic-lock" stroke="#fff"/></svg>Tiến hành thanh toán';
+  }
+}
+
+// ===== PAYMENT POLLING =====
+let _payOrderId = null;
+let _payPollTimer = null;
+let _payStatus = 'pending';
+
+async function initPayment(total) {
+  stopPayPoll();
+  _payOrderId = null;
+  _payStatus = 'pending';
+  try {
+    const items = Object.values(cart).filter(x => x.qty > 0);
+    const names = items.map(x => x.name).join(', ');
+    const r = await fetch(`${PB_URL}/api/create-order?amount=${total}&product=${encodeURIComponent(names)}`);
+    const d = await r.json();
+    if (!d.success) return;
+    _payOrderId = d.orderId;
+    // Cập nhật QR thật từ server
+    const img = document.getElementById('qrImgCart');
+    if (img) img.src = d.qrUrl;
+    const msg = document.getElementById('qrMsgCart');
+    if (msg) msg.innerHTML = `Nội dung: <b>${d.content}</b>`;
+    startPayPoll();
+  } catch(e) {
+    // Server offline — QR tĩnh vẫn hiển thị, chỉ không tự động xác nhận
+    const msg = document.getElementById('qrMsgCart');
+    if (msg) msg.innerHTML = `Nội dung: <b>ElectroShop</b>`;
+  }
+}
+
+function startPayPoll() {
+  stopPayPoll();
+  _payPollTimer = setInterval(async () => {
+    if (!_payOrderId) return;
+    try {
+      const r = await fetch(`${PB_URL}/api/order-status?orderId=${_payOrderId}`);
+      const d = await r.json();
+      if (d.success && d.status !== _payStatus) {
+        _payStatus = d.status;
+        if (_payStatus === 'paid') {
+          const btn = document.getElementById('btnCheckout');
+          if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '✅ Đã nhận tiền — Bấm để xác nhận giao hàng';
+            btn.style.background = 'linear-gradient(135deg,#10b981,#059669)';
+            btn.style.boxShadow = '0 8px 30px rgba(16,185,129,0.4)';
+            btn.style.animation = 'cartBounce .5s ease';
+          }
+          showToast('💰 Đã nhận thanh toán! Nhấn xác nhận để giao hàng.');
+          stopPayPoll();
+        }
+      }
+    } catch(e) {}
+  }, 3000);
+}
+
+function stopPayPoll() {
+  if (_payPollTimer) { clearInterval(_payPollTimer); _payPollTimer = null; }
 }
 
 // ===== AUTH =====

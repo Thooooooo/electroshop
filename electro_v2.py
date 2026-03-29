@@ -2,7 +2,8 @@ from flask import Flask, request, redirect, render_template_string, jsonify, abo
 from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.utils import secure_filename
-import sqlite3, os, uuid
+import sqlite3, os, uuid, time, threading
+from urllib.parse import quote
 
 app = Flask(__name__)
 CORS(app)
@@ -701,8 +702,47 @@ def uploads(filename):
     return send_from_directory(UPLOAD_DIR, filename)
 
 
-@app.route('/api/products')
+IMAGES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'images')
+os.makedirs(IMAGES_DIR, exist_ok=True)
+ALLOWED_EXT = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
+
+@app.route('/images/<path:filename>')
+def serve_image(filename):
+    return send_from_directory(IMAGES_DIR, filename)
+
+@app.route('/api/upload', methods=['POST'])
+def api_upload():
+    f = request.files.get('file') or request.files.get('image')
+    if not f or not f.filename:
+        return jsonify({'error': 'Không có file'}), 400
+    ext = f.filename.rsplit('.', 1)[-1].lower() if '.' in f.filename else ''
+    if ext not in ALLOWED_EXT:
+        return jsonify({'error': f'Định dạng không hỗ trợ: {ext}'}), 400
+    # Giữ tên gốc nhưng làm sạch, thêm timestamp tránh trùng
+    import time, re
+    safe = re.sub(r'[^\w\-.]', '_', f.filename.rsplit('.', 1)[0])[:40]
+    fname = f'{safe}_{int(time.time())}.{ext}'
+    f.save(os.path.join(IMAGES_DIR, fname))
+    url = f'/images/{fname}'
+    return jsonify({'url': url, 'filename': fname, 'full_url': f'https://electroshop-pi5.electroshop-tho.workers.dev{url}'})
+
+
+@app.route('/api/products', methods=['GET', 'POST'])
 def api_products():
+    if request.method == 'POST':
+        d = request.get_json(silent=True) or {}
+        name  = (d.get('name') or '').strip()
+        price = int(d.get('price') or 0)
+        if not name or not price:
+            return jsonify({'error': 'Thiếu name hoặc price'}), 400
+        with get_db() as c:
+            cur = c.execute(
+                'INSERT INTO products(name, price, description, stock, anh_url) VALUES(?,?,?,?,?)',
+                (name, str(price), d.get('description',''), int(d.get('stock',0)), d.get('image_url',''))
+            )
+            c.commit()
+            new_id = cur.lastrowid
+        return jsonify({'id': new_id, 'name': name, 'price': price}), 201
     with get_db() as c:
         rows = c.execute('SELECT * FROM products ORDER BY created_at DESC').fetchall()
     return jsonify([dict(r) for r in rows])
@@ -773,6 +813,109 @@ def api_news():
 @app.route('/health')
 def health():
     return jsonify({'status': 'ok'})
+
+
+# ── Payment (Sacombank VietQR + Sepay webhook) ────────────────────────────────
+
+_PAY_BANK_ID      = 'STB'
+_PAY_ACCOUNT_NO   = '0355020289'
+_PAY_ACCOUNT_NAME = 'DO THI THU HA'
+_SEPAY_SECRET     = os.environ.get('SEPAY_SECRET', 'YOUR_SEPAY_WEBHOOK_SECRET')
+
+_orders      = {}
+_orders_lock = threading.Lock()
+
+def _auto_clean_orders():
+    while True:
+        time.sleep(3600)
+        cutoff = time.time() - 86400
+        with _orders_lock:
+            for oid in list(_orders.keys()):
+                if _orders[oid]['createdAt'] < cutoff:
+                    del _orders[oid]
+
+threading.Thread(target=_auto_clean_orders, daemon=True).start()
+
+
+@app.route('/api/create-order')
+def api_create_order():
+    amount  = int(request.args.get('amount', 50000))
+    product = request.args.get('product', '')
+    oid     = 'DH' + str(int(time.time() * 1000))[-8:]
+    content = f'THANHTOAN {oid}'
+    qr_url  = (
+        f'https://img.vietqr.io/image/{_PAY_BANK_ID}-{_PAY_ACCOUNT_NO}-compact2.png'
+        f'?amount={amount}&addInfo={quote(content)}&accountName={quote(_PAY_ACCOUNT_NAME)}'
+    )
+    with _orders_lock:
+        _orders[oid] = {
+            'orderId': oid, 'amount': amount, 'content': content,
+            'product': product, 'status': 'pending', 'createdAt': time.time()
+        }
+    return jsonify({
+        'success': True, 'orderId': oid, 'amount': amount,
+        'content': content, 'qrUrl': qr_url, 'product': product,
+        'accountNo': _PAY_ACCOUNT_NO, 'accountName': _PAY_ACCOUNT_NAME, 'bankId': _PAY_BANK_ID
+    })
+
+
+@app.route('/api/order-status')
+def api_order_status():
+    oid = request.args.get('orderId', '')
+    with _orders_lock:
+        order = _orders.get(oid)
+    if not order:
+        return jsonify({'success': False, 'message': 'Không tìm thấy đơn hàng'}), 404
+    return jsonify({'success': True, **order})
+
+
+@app.route('/api/deliver', methods=['POST', 'OPTIONS'])
+def api_deliver():
+    if request.method == 'OPTIONS':
+        return '', 204
+    data  = request.get_json() or {}
+    oid   = data.get('orderId') or request.args.get('orderId', '')
+    with _orders_lock:
+        order = _orders.get(oid)
+        if not order:
+            return jsonify({'success': False, 'message': 'Không tìm thấy đơn hàng'}), 404
+        if order['status'] != 'paid':
+            return jsonify({'success': False, 'message': 'Đơn chưa thanh toán'}), 400
+        order['status']      = 'delivered'
+        order['deliveredAt'] = time.time()
+    return jsonify({'success': True, **order})
+
+
+@app.route('/webhook/sepay', methods=['POST'])
+def webhook_sepay():
+    data = request.get_json() or {}
+    if (_SEPAY_SECRET != 'YOUR_SEPAY_WEBHOOK_SECRET'
+            and request.headers.get('apikey', '') != _SEPAY_SECRET):
+        return jsonify({'success': False}), 401
+
+    content  = (data.get('content') or data.get('code') or '').upper()
+    ttype    = data.get('transferType', '')
+    amount   = data.get('transferAmount', 0)
+
+    if ttype != 'in':
+        return jsonify({'success': True, 'message': 'Bỏ qua'})
+
+    with _orders_lock:
+        for order in _orders.values():
+            if order['orderId'].upper() in content and order['status'] == 'pending':
+                if amount >= order['amount']:
+                    order['status']    = 'paid'
+                    order['paidAt']    = time.time()
+                    order['paidAmount']= amount
+                break
+    return jsonify({'success': True})
+
+
+@app.route('/api/orders')
+def api_orders():
+    with _orders_lock:
+        lst = sorted(_orders.values(), key=lambda x: x['createdAt'], reverse=True)
+    return jsonify({'success': True, 'orders': list(lst)})
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
