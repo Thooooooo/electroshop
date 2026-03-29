@@ -1464,11 +1464,11 @@ function renderNews(items) {
   }
   const icons = ['📰','🔧','💡','🚀'];
   grid.innerHTML = items.map((n, i) => {
-    const title = n.tieu_de || n.title || n.name || 'Bài viết mới';
-    const summary = n.tom_tat || n.summary || n.description || n.content || '';
-    const thumb = n.anh_url || n.image || n.thumb || '';
-    const tag = n.danh_muc || n.category || 'Công nghệ';
-    const date = n.ngay || n.created_at ? new Date(n.ngay || n.created_at).toLocaleDateString('vi-VN') : '';
+    const title = n.title || n.tieu_de || n.name || 'Bài viết mới';
+    const summary = n.summary || n.tom_tat || n.description || n.content || '';
+    const thumb = n.cover || n.anh_url || n.image || n.thumb || '';
+    const tag = n.category || n.danh_muc || 'Công nghệ';
+    const date = n.created_at ? new Date(n.created_at).toLocaleDateString('vi-VN') : 'Hôm nay';
     return `<div class="news-card" onclick="window.open('news.html','_self')">
       <div class="news-thumb">${thumb
         ? `<img src="${thumb}" alt="${title}" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
