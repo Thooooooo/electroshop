@@ -768,18 +768,13 @@ async function loadProducts() {
     renderAll();
   } catch(e) {
     console.error('Lỗi tải sản phẩm:', e);
-    // Fallback: hiện demo products khi API offline
-    products = [
-      {id:1,name:'Arduino Uno R3',cat:'Vi điều khiển',price:95000,oldPrice:120000,badge:'banchay',stars:5,reviews:128,sold:342,img:'https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&q=80',imgs:[],desc:'Bo mạch Arduino Uno R3 chính hãng',specs:{},attrs:[],reviews_data:[]},
-      {id:2,name:'Raspberry Pi 5 8GB',cat:'SBC Board',price:1850000,oldPrice:2100000,badge:'hot',stars:5,reviews:56,sold:89,img:'https://images.unsplash.com/photo-1601004890684-d8cbf643f5f2?w=600&q=80',imgs:[],desc:'Raspberry Pi 5 RAM 8GB mạnh nhất thế hệ mới',specs:{},attrs:[],reviews_data:[]},
-      {id:3,name:'ESP32 Dev Board',cat:'WiFi/BLE',price:65000,oldPrice:null,badge:'moi',stars:4,reviews:74,sold:215,img:'https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&q=80',imgs:[],desc:'ESP32 tích hợp WiFi và Bluetooth',specs:{},attrs:[],reviews_data:[]},
-      {id:4,name:'LCD 16x2 I2C',cat:'Màn hình',price:45000,oldPrice:null,badge:'sale',stars:4,reviews:33,sold:180,img:'https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&q=80',imgs:[],desc:'LCD 16x2 giao tiếp I2C tiện lợi',specs:{},attrs:[],reviews_data:[]},
-      {id:5,name:'Cảm biến DHT22',cat:'Cảm biến',price:55000,oldPrice:null,badge:'banchay',stars:5,reviews:91,sold:410,img:'https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&q=80',imgs:[],desc:'Cảm biến nhiệt độ & độ ẩm độ chính xác cao',specs:{},attrs:[],reviews_data:[]},
-      {id:6,name:'Module Relay 4 kênh',cat:'Module',price:38000,oldPrice:null,badge:'moi',stars:4,reviews:47,sold:163,img:'https://images.unsplash.com/photo-1518770660439-4636190af475?w=600&q=80',imgs:[],desc:'Module relay 5V 4 kênh điều khiển tải AC/DC',specs:{},attrs:[],reviews_data:[]},
-    ];
-    renderAll();
-    document.getElementById('productGrid').insertAdjacentHTML('beforebegin',
-      '<div style="background:#fef3c7;border:1px solid #f59e0b;border-radius:10px;padding:10px 16px;margin-bottom:16px;font-size:0.82rem;color:#92400e;display:flex;align-items:center;gap:8px">⚠️ Đang hiển thị sản phẩm demo — server đang khởi động...</div>');
+    document.getElementById('productGrid').innerHTML =
+      '<div style="grid-column:1/-1;text-align:center;padding:48px 24px;color:var(--muted)">' +
+      '<div style="font-size:2rem;margin-bottom:12px">🔌</div>' +
+      '<div style="font-weight:700;margin-bottom:6px">Chưa kết nối được Pi 5</div>' +
+      '<div style="font-size:0.85rem">Kiểm tra tunnel Cloudflare rồi tải lại trang.</div>' +
+      '<button onclick="loadProducts()" style="margin-top:16px;background:var(--primary);color:#fff;border:none;border-radius:99px;padding:10px 24px;font-weight:700;cursor:pointer;font-family:inherit">🔄 Thử lại</button>' +
+      '</div>';
   }
 }
 
