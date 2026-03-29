@@ -735,15 +735,16 @@ const PB_URL = 'https://stomach-skating-days-therapy.trycloudflare.com';
 
 async function loadProducts() {
   try {
-    const res = await fetch('/api/products');
-    if (!res.ok) throw new Error('API error');
+    const res = await fetch(`${PB_URL}/api/products`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    const items = data.items || data;
+    console.log('Data từ Pi 5:', data);
+    const items = Array.isArray(data) ? data : (data.items || []);
     products = items.map((p, i) => ({
       id: p.id || i+1,
       name: p.ten || p.name || '',
       cat: p.loai || p.category || 'Linh kiện',
-      price: typeof p.gia === 'number' ? p.gia : parseInt(p.price || '0'),
+      price: typeof p.gia === 'number' ? p.gia : parseFloat(String(p.price || '0').replace(/[^\d.]/g,'')) || 0,
       oldPrice: null,
       badge: i < 2 ? 'banchay' : (i % 3 === 0 ? 'sale' : 'moi'),
       stars: 4,
