@@ -3,7 +3,7 @@
 export const config = { runtime: 'edge' };
 
 // URL tunnel Cloudflare → Flask v2 port 8888 trên Pi
-const PI_URL = process.env.API_URL || 'https://pros-cases-postposted-accompanying.trycloudflare.com';
+const PI_URL = process.env.API_URL || 'https://electroshop-pi5.electroshop-tho.workers.dev';
 
 export default async function handler() {
   try {
