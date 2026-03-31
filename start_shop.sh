@@ -7,6 +7,7 @@ GEMINI_API_KEY="${GEMINI_API_KEY:-AIzaSyCZe1zh64PDeWzE_1j43zlUmhEVzQPhDmM}"
 TUNNEL_REPO="Thooooooo/electroshop-tunnel"
 CF_LOG="/tmp/cf_electroshop.log"
 PB_PORT=8090
+FLASK_PORT=8888
 
 echo "🚀 Khởi động PocketBase (cổng $PB_PORT)..."
 pkill -f "pocketbase serve" 2>/dev/null || true
@@ -29,10 +30,18 @@ sleep 2
 curl -s http://127.0.0.1:5001/health > /dev/null && \
   echo "✅ Flask :5001 OK" || echo "⚠️  Flask :5001 chưa sẵn sàng"
 
-echo "☁️  Khởi động Cloudflare Tunnel..."
+echo "💳 Khởi động ElectroShop Payment (electro_v2, cổng 8888)..."
+pkill -f "electro_v2.py" 2>/dev/null || true
+GEMINI_API_KEY="$GEMINI_API_KEY" nohup python3 /home/tho/electroshop/electro_v2.py \
+  > /tmp/electrov2.log 2>&1 &
+sleep 3
+curl -s http://127.0.0.1:8888/health > /dev/null && \
+  echo "✅ electro_v2 :8888 OK" || echo "⚠️  electro_v2 :8888 chưa sẵn sàng"
+
+echo "☁️  Khởi động Cloudflare Tunnel (Flask :$FLASK_PORT)..."
 pkill -f "cloudflared tunnel" 2>/dev/null || true
 rm -f "$CF_LOG"
-nohup cloudflared tunnel --url "http://localhost:$PB_PORT" \
+nohup cloudflared tunnel --url "http://localhost:$FLASK_PORT" \
   --logfile "$CF_LOG" > /dev/null 2>&1 &
 CF_PID=$!
 
@@ -80,6 +89,7 @@ echo ""
 echo "📊 Trạng thái:"
 echo "   PocketBase : http://localhost:$PB_PORT"
 echo "   Flask      : http://localhost:5001"
+echo "   electro_v2 : http://localhost:8888"
 echo "   Tunnel URL : $NEW_URL"
 echo "   Vercel     : https://electroshop-ten.vercel.app"
 echo ""
@@ -93,7 +103,7 @@ while true; do
   if ! kill -0 $CF_PID 2>/dev/null; then
     echo "⚠️  $(date '+%H:%M:%S') Cloudflare tunnel bị dừng — đang khởi động lại..."
     rm -f "$CF_LOG"
-    nohup cloudflared tunnel --url "http://localhost:$PB_PORT" \
+    nohup cloudflared tunnel --url "http://localhost:$FLASK_PORT" \
       --logfile "$CF_LOG" > /dev/null 2>&1 &
     CF_PID=$!
     sleep 10
@@ -136,6 +146,15 @@ while true; do
     pkill -f "auto_desc.py" 2>/dev/null || true
     GEMINI_API_KEY="$GEMINI_API_KEY" nohup python3 /home/tho/electroshop/auto_desc.py \
       > /tmp/flask.log 2>&1 &
+    sleep 3
+  fi
+
+  # Kiểm tra electro_v2 (payment)
+  if ! curl -sf "http://127.0.0.1:8888/health" > /dev/null 2>&1; then
+    echo "⚠️  $(date '+%H:%M:%S') electro_v2 không phản hồi — khởi động lại..."
+    pkill -f "electro_v2.py" 2>/dev/null || true
+    GEMINI_API_KEY="$GEMINI_API_KEY" nohup python3 /home/tho/electroshop/electro_v2.py \
+      > /tmp/electrov2.log 2>&1 &
     sleep 3
   fi
 done
