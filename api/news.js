@@ -1,28 +1,31 @@
-// Vercel Edge Function – Proxy /api/news → Flask v2 (news not yet implemented → empty)
 export const config = { runtime: 'edge' };
 
-// URL tunnel Cloudflare → Flask v2 port 8888 trên Pi
-const PI_URL = process.env.API_URL || 'https://electroshop-pi5.electroshop-tho.workers.dev';
+async function getPiUrl() {
+  const res = await fetch('https://api.github.com/repos/Thooooooo/electroshop-tunnel/contents/url.txt', {
+    headers: { 'User-Agent': 'ElectroShop-Proxy' },
+    cache: 'no-store',
+  });
+  if (!res.ok) throw new Error(`GitHub ${res.status}`);
+  const data = await res.json();
+  return atob(data.content.replace(/\n/g, '')).trim();
+}
 
 export default async function handler(req) {
   try {
     const { searchParams } = new URL(req.url);
-
-    // Thử gọi Flask /api/news nếu có, fallback về empty
-    const upstream = await fetch(`${PI_URL}/api/news?${searchParams}`, {
+    const piUrl = process.env.API_URL || await getPiUrl();
+    const upstream = await fetch(`${piUrl}/api/news?${searchParams}`, {
       headers: { 'User-Agent': 'ElectroShop-Vercel' },
       signal: AbortSignal.timeout(5000),
     }).catch(() => null);
 
     if (upstream && upstream.ok) {
       const raw = await upstream.json();
-      // Flask trả mảng thô [...] — cần convert sang PocketBase format {items, totalItems}
       const items = Array.isArray(raw) ? raw : (raw.items || []);
       return Response.json({ items, totalItems: items.length }, {
         headers: { 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' },
       });
     }
-
     return Response.json({ items: [], totalItems: 0 }, {
       headers: { 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' },
     });
@@ -31,4 +34,3 @@ export default async function handler(req) {
     return Response.json({ items: [], totalItems: 0 });
   }
 }
-
