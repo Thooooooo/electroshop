@@ -488,8 +488,6 @@ footer{background:var(--dark);padding:56px 0 24px}
         <svg width="20" height="20"><use href="#ic-cart"/></svg>
         <span class="nbadge" id="cartBadge">0</span>
       </button>
-      <!-- Admin quick-add button -->
-      <button class="icon-btn" onclick="openAdminModal()" title="Thêm sản phẩm" aria-label="Admin" style="background:linear-gradient(135deg,#6c3bff22,#1e3a8a22);border:1px solid #6c3bff44">➕</button>
       <div class="nav-user-wrap" id="navUserWrap">
         <button class="btn-login" onclick="openModal('login')">
           <svg width="15" height="15"><use href="#ic-user"/></svg>Đăng nhập
@@ -1632,7 +1630,6 @@ loadNews();
 <script>
 // ===== ADMIN: Upload ảnh + Thêm sản phẩm =====
 
-function openAdminModal() {
   document.getElementById('adminModal').classList.add('show');
 }
 function closeAdminModal() {
