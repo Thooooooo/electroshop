@@ -1,0 +1,590 @@
+/*
+ * ╔══════════════════════════════════════════════════════════════╗
+ * ║   CYD SSH TERMINAL — ESP32 WROOM + ILI9488 3.5"            ║
+ * ║   LVGL 9.x  ·  XPT2046  ·  LibSSH-ESP32  ·  ElectroShop  ║
+ * ╠══════════════════════════════════════════════════════════════╣
+ * ║  Display : ILI9488  480×320 landscape  (TFT_eSPI)           ║
+ * ║  Touch   : XPT2046  HSPI (CLK=25,MISO=39,MOSI=32,CS=33)   ║
+ * ║  SSH     : LibSSH-ESP32 → Raspberry Pi 5                   ║
+ * ║  Web     : HTTPClient → electroshop-ten.vercel.app          ║
+ * ╠══════════════════════════════════════════════════════════════╣
+ * ║  FQBN: esp32:esp32:esp32:PartitionScheme=huge_app           ║
+ * ╚══════════════════════════════════════════════════════════════╝
+ */
+
+#include <arpa/inet.h>
+#include "esp_netif.h"
+#include "libssh_esp32.h"
+#include <libssh/libssh.h>
+
+#include <lvgl.h>
+#include <TFT_eSPI.h>
+#include <SPI.h>
+#include <XPT2046_Touchscreen.h>
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+
+/* ══════════════════════════════════════════════════════════
+   CẤU HÌNH — ĐỔI THEO MÁY BẠN
+   ══════════════════════════════════════════════════════════ */
+#define WIFI_SSID  "CAFE 669"
+#define WIFI_PASS  "51268989"
+#define SSH_HOST   "192.168.1.2"
+#define SSH_PORT   22
+#define SSH_USER   "tho"
+#define SSH_PASS   "512689"
+#define SHOP_URL   "https://electroshop-ten.vercel.app"
+/* ══════════════════════════════════════════════════════════ */
+
+/* ── Màn hình & touch ─────────────────────────────────── */
+#define SCR_W      480
+#define SCR_H      320
+#define TFT_BL_PIN 27
+#define T_CLK  25
+#define T_MISO 39
+#define T_MOSI 32
+#define T_CS   33
+#define T_IRQ  36
+
+/* ── LVGL draw buffer — cấp phát trên heap lúc runtime
+   để TRÁNH tràn DRAM BSS (LibSSH chiếm ~40KB BSS tĩnh)  ── */
+#define BUF_ROWS 10
+static lv_color_t *buf_a = nullptr;
+static lv_color_t *buf_b = nullptr;
+
+/* ── Objects ──────────────────────────────────────────── */
+static TFT_eSPI          tft = TFT_eSPI();
+static SPIClass          touchSPI(HSPI);
+static XPT2046_Touchscreen ts(T_CS);   // polling mode, no IRQ pin
+
+static lv_obj_t *ta_hist = nullptr;
+static lv_obj_t *ta_cmd  = nullptr;
+static lv_obj_t *kb      = nullptr;
+static bool      kb_open = false;
+
+/* ── Màu terminal ─────────────────────────────────────── */
+#define C_BG      lv_color_hex(0x000000)
+#define C_GREEN   lv_color_hex(0x00FF00)
+#define C_DKGREEN lv_color_hex(0x003300)
+#define C_BAR     lv_color_hex(0x001400)
+
+/* ── SSH task: giao tiếp qua FreeRTOS queues ──────────── */
+static QueueHandle_t q_cmd;     // main → ssh_task: gửi lệnh
+static QueueHandle_t q_result;  // ssh_task → main: kết quả
+
+struct SshMsg {
+    char text[2048];   /* 2KB — vừa đủ, giảm từ 4KB để tiết kiệm DRAM */
+};
+
+/* ══════════════════════════════════════════════════════════
+   1.  LVGL flush → ILI9488
+   ══════════════════════════════════════════════════════════ */
+static void lv_flush_cb(lv_display_t *disp,
+                        const lv_area_t *area, uint8_t *px_map)
+{
+    uint32_t w = area->x2 - area->x1 + 1;
+    uint32_t h = area->y2 - area->y1 + 1;
+    tft.startWrite();
+    tft.setAddrWindow(area->x1, area->y1, w, h);
+    tft.pushColors((uint16_t *)px_map, w * h, true);
+    tft.endWrite();
+    lv_display_flush_ready(disp);
+}
+
+/* ══════════════════════════════════════════════════════════
+   2.  LVGL touch read
+   ══════════════════════════════════════════════════════════ */
+static void lv_touch_cb(lv_indev_t *indev, lv_indev_data_t *data)
+{
+    // IRQ pin LOW = có chạm (GPIO36 input-only, check thủ công)
+    if (digitalRead(T_IRQ) == HIGH) { data->state = LV_INDEV_STATE_RELEASED; return; }
+    if (!ts.touched())              { data->state = LV_INDEV_STATE_RELEASED; return; }
+    TS_Point p = ts.getPoint();
+    data->point.x = constrain(map(p.x, 200, 3800, 0, SCR_W-1), 0, SCR_W-1);
+    data->point.y = constrain(map(p.y, 300, 3700, 0, SCR_H-1), 0, SCR_H-1);
+    data->state   = LV_INDEV_STATE_PRESSED;
+    Serial.printf("[T] raw(%d,%d) -> scr(%d,%d)\n",
+                  p.x, p.y, data->point.x, data->point.y);
+}
+
+/* ══════════════════════════════════════════════════════════
+   3.  Terminal helpers
+   ══════════════════════════════════════════════════════════ */
+#define TA_MAX 8192
+
+static void term_append(const char *txt)
+{
+    if (!ta_hist) return;
+    const char *cur = lv_textarea_get_text(ta_hist);
+    if ((int)(strlen(cur) + strlen(txt)) > TA_MAX) {
+        // Xoá nửa đầu — giữ lại nửa sau để vẫn cuộn được
+        String keep = String(cur).substring(TA_MAX / 2);
+        lv_textarea_set_text(ta_hist, keep.c_str());
+    }
+    lv_textarea_add_text(ta_hist, txt);
+    lv_obj_scroll_to_y(ta_hist, LV_COORD_MAX, LV_ANIM_ON);
+}
+
+static void term_printf(const char *fmt, ...)
+{
+    char buf[512]; va_list ap;
+    va_start(ap, fmt); vsnprintf(buf, sizeof buf, fmt, ap); va_end(ap);
+    term_append(buf);
+}
+
+/* ══════════════════════════════════════════════════════════
+   4.  SSH FreeRTOS task (chạy trên core 0, stack 52 KB)
+       Nhận lệnh từ q_cmd, trả kết quả qua q_result
+   ══════════════════════════════════════════════════════════ */
+static void ssh_task(void *pv)
+{
+    libssh_begin();   // khởi tạo bộ nhớ libssh
+
+    ssh_session session = nullptr;
+    bool        ok      = false;
+    SshMsg      msg;
+
+    auto do_connect = [&]() -> bool {
+        if (session) { ssh_disconnect(session); ssh_free(session); }
+        session = ssh_new();
+        if (!session) return false;
+        int port = SSH_PORT, tmo = 12;
+        ssh_options_set(session, SSH_OPTIONS_HOST,    SSH_HOST);
+        ssh_options_set(session, SSH_OPTIONS_PORT,    &port);
+        ssh_options_set(session, SSH_OPTIONS_USER,    SSH_USER);
+        ssh_options_set(session, SSH_OPTIONS_TIMEOUT, &tmo);
+        if (ssh_connect(session) != SSH_OK)                              { ssh_free(session); session = nullptr; return false; }
+        if (ssh_userauth_password(session, nullptr, SSH_PASS)
+            != SSH_AUTH_SUCCESS) { ssh_disconnect(session); ssh_free(session); session = nullptr; return false; }
+        return true;
+    };
+
+    while (true) {
+        if (xQueueReceive(q_cmd, &msg, portMAX_DELAY) != pdTRUE) continue;
+
+        // Lệnh đặc biệt "CONNECT"
+        if (strcmp(msg.text, "__CONNECT__") == 0) {
+            ok = do_connect();
+            snprintf(msg.text, sizeof msg.text,
+                     ok ? "[SSH] >> Ket noi Pi 5 OK (%s)\n"
+                        : "[SSH] !! Ket noi that bai!\n", SSH_HOST);
+            xQueueSend(q_result, &msg, portMAX_DELAY);
+            continue;
+        }
+
+        // Kết nối lại nếu chưa có session
+        if (!ok) {
+            ok = do_connect();
+            if (!ok) {
+                snprintf(msg.text, sizeof msg.text,
+                         "[SSH] !! Khong ket noi duoc Pi 5\n");
+                xQueueSend(q_result, &msg, portMAX_DELAY);
+                continue;
+            }
+        }
+
+        // Mở channel + exec lệnh
+        ssh_channel ch = ssh_channel_new(session);
+        if (!ch || ssh_channel_open_session(ch) != SSH_OK) {
+            ok = false;
+            snprintf(msg.text, sizeof msg.text, "[SSH] ❌ Channel error\n");
+            xQueueSend(q_result, &msg, portMAX_DELAY);
+            if (ch) ssh_channel_free(ch);
+            continue;
+        }
+
+        String cmd_str = String(msg.text);
+        if (ssh_channel_request_exec(ch, cmd_str.c_str()) != SSH_OK) {
+            snprintf(msg.text, sizeof msg.text, "[SSH] ❌ Exec error\n");
+        } else {
+            String out;
+            char   rbuf[512]; int n;
+            while ((n = ssh_channel_read_timeout(ch, rbuf, sizeof rbuf-1, 0, 10000)) > 0) {
+                rbuf[n] = '\0'; out += rbuf;
+                if ((int)out.length() > 3800) { out += "\n...(truncated)\n"; break; }
+            }
+            while ((n = ssh_channel_read_timeout(ch, rbuf, sizeof rbuf-1, 1, 200)) > 0) {
+                rbuf[n] = '\0'; out += rbuf;
+            }
+            if (out.isEmpty()) out = "(no output)\n";
+            else if (!out.endsWith("\n")) out += "\n";
+            snprintf(msg.text, sizeof msg.text, "%s", out.c_str());
+        }
+
+        ssh_channel_send_eof(ch);
+        ssh_channel_close(ch);
+        ssh_channel_free(ch);
+        xQueueSend(q_result, &msg, portMAX_DELAY);
+    }
+}
+
+/* ══════════════════════════════════════════════════════════
+   5.  Gửi lệnh → SSH task (non-blocking cho LVGL)
+   ══════════════════════════════════════════════════════════ */
+static bool waiting_result = false;
+
+static void send_ssh(const char *cmd)
+{
+    SshMsg msg;
+    strncpy(msg.text, cmd, sizeof msg.text - 1);
+    msg.text[sizeof msg.text - 1] = '\0';
+    xQueueSend(q_cmd, &msg, 0);
+    waiting_result = true;
+}
+
+/* ══════════════════════════════════════════════════════════
+   6.  Fetch ElectroShop products
+   ══════════════════════════════════════════════════════════ */
+static void fetch_shop()
+{
+    if (WiFi.status() != WL_CONNECTED) { term_append("[shop] !! Chua co WiFi\n"); return; }
+    term_append("[shop] Dang tai du lieu...\n");
+
+    HTTPClient http;
+    http.begin(SHOP_URL "/api/products?perPage=10&sort=-created");
+    http.setTimeout(8000);
+    int code = http.GET();
+    if (code != 200) { term_printf("[shop] ❌ HTTP %d\n", code); http.end(); return; }
+
+    String body = http.getString(); http.end();
+    StaticJsonDocument<4096> doc;
+    if (deserializeJson(doc, body)) { term_append("[shop] !! Loi JSON\n"); return; }
+
+    int total = doc["totalItems"] | 0;
+    term_printf("[shop] ── ElectroShop (%d SP) ──────────\n", total);
+    for (JsonObject item : doc["items"].as<JsonArray>()) {
+        const char *ten  = item["ten"]  | "?";
+        long        gia  = item["gia"]  | 0;
+        const char *loai = item["loai"] | "?";
+        term_printf("  %-26s %9ldd [%s]\n", ten, gia, loai);
+    }
+    term_append("────────────────────────────────────────\n");
+}
+
+/* ══════════════════════════════════════════════════════════
+   6b. Web check — ping các endpoint quan trọng
+   ══════════════════════════════════════════════════════════ */
+static void web_check()
+{
+    if (WiFi.status() != WL_CONNECTED) {
+        term_append("[web] !! Chua co WiFi\n"); return;
+    }
+    term_append("\n── Web Check ─────────────────────────\n");
+
+    struct { const char *label; const char *url; } checks[] = {
+        { "Vercel  ", SHOP_URL "/" },
+        { "API     ", SHOP_URL "/api/products?perPage=1" },
+        { "PB LAN  ", "http://" SSH_HOST ":8090/api/health" },
+        { "Nginx   ", "http://" SSH_HOST ":8080/" },
+    };
+
+    HTTPClient http;
+    for (auto &c : checks) {
+        http.begin(c.url);
+        http.setTimeout(6000);
+        unsigned long t0 = millis();
+        int code = http.GET();
+        unsigned long ms = millis() - t0;
+        if (code > 0)
+            term_printf("  %s HTTP %d  (%lums)\n", c.label, code, ms);
+        else
+            term_printf("  %s ERR %d  (timeout?)\n", c.label, code);
+        http.end();
+        lv_timer_handler();   // giữ màn hình tươi trong lúc check
+    }
+    term_append("──────────────────────────────────────\n");
+}
+
+/* ============================================================
+   7.  Xu ly lenh nguoi dung
+   ============================================================ */
+static void run_cmd(const String &raw)
+{
+    String cmd = raw; cmd.trim();
+    if (cmd.isEmpty()) return;
+
+    term_printf("\n%s@pi5:~$ %s\n", SSH_USER, cmd.c_str());
+
+    if (cmd == "clear" || cmd == "cls") { lv_textarea_set_text(ta_hist, ""); return; }
+    if (cmd == "shop")       { fetch_shop(); return; }
+    if (cmd == "web")        { web_check();  return; }
+    if (cmd == "ip")         { term_printf("WiFi: %s  Pi: %s\n", WiFi.localIP().toString().c_str(), SSH_HOST); return; }
+    if (cmd == "disconnect") { send_ssh("__CONNECT__"); return; } // reconnect
+    if (cmd == "help") {
+        term_append(
+            "Lenh dac biet:\n"
+            "  clear/cls    - xoa man hinh\n"
+            "  shop         - san pham ElectroShop\n"
+            "  ip           - IP WiFi + Pi\n"
+            "  disconnect   - ket noi lai SSH\n"
+            "  help         - trang nay\n"
+            "Khac: lenh Linux gui qua SSH\n"
+        );
+        return;
+    }
+    // Gửi qua SSH task
+    send_ssh(cmd.c_str());
+    term_append("...\n");
+}
+
+/* ============================================================
+   8.  Button + keyboard callbacks
+   ============================================================ */
+#define KB_H   160
+#define BAR_H   32
+
+static void btn_web_cb(lv_event_t *e) {
+    if (lv_event_get_code(e) == LV_EVENT_CLICKED) web_check();
+}
+static void btn_kb_cb(lv_event_t *e) {
+    if (lv_event_get_code(e) != LV_EVENT_CLICKED) return;
+    if (kb_open) {
+        kb_open = false;
+        lv_obj_add_flag(kb, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_height(ta_hist, SCR_H - BAR_H);
+    } else {
+        kb_open = true;
+        lv_obj_remove_flag(kb, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_set_height(ta_hist, SCR_H - KB_H - BAR_H);
+        lv_obj_scroll_to_y(ta_hist, LV_COORD_MAX, LV_ANIM_OFF);
+    }
+}
+static void kb_cb(lv_event_t *e) {
+    lv_event_code_t code = lv_event_get_code(e);
+    // Chặn DEFOCUSED và CANCEL để keyboard không tự ẩn
+    if (code == LV_EVENT_DEFOCUSED) {
+        lv_keyboard_set_textarea(kb, ta_cmd); // giữ liên kết với ta_cmd
+        return;
+    }
+    if (code == LV_EVENT_CANCEL) return; // chặn nút đóng tự ẩn
+    if (code == LV_EVENT_READY) {
+        String cmd = String(lv_textarea_get_text(ta_cmd));
+        lv_textarea_set_text(ta_cmd, "");
+        run_cmd(cmd);
+        return;
+    }
+    lv_keyboard_def_event_cb(e);
+}
+
+/* ============================================================
+   9.  Build UI — keyboard luon hien mac dinh
+   ============================================================ */
+static void build_ui()
+{
+    lv_obj_t *scr = lv_scr_act();
+    lv_obj_set_style_bg_color(scr, C_BG, 0);
+    lv_obj_set_style_bg_opa(scr,  LV_OPA_COVER, 0);
+
+    /* Style terminal */
+    static lv_style_t st;
+    lv_style_init(&st);
+    lv_style_set_bg_color    (&st, C_BG);
+    lv_style_set_bg_opa      (&st, LV_OPA_COVER);
+    lv_style_set_text_color  (&st, C_GREEN);
+    lv_style_set_text_font   (&st, &lv_font_unscii_8);
+    lv_style_set_border_width(&st, 0);
+    lv_style_set_radius      (&st, 0);
+    lv_style_set_pad_all     (&st, 4);
+
+    /* ta_hist: SCR_H - KB_H - BAR_H = 128px */
+    ta_hist = lv_textarea_create(scr);
+    lv_obj_set_size  (ta_hist, SCR_W, SCR_H - KB_H - BAR_H);
+    lv_obj_set_pos   (ta_hist, 0, 0);
+    lv_obj_add_style (ta_hist, &st, 0);
+    lv_textarea_set_cursor_click_pos(ta_hist, false);
+    lv_obj_set_scrollbar_mode(ta_hist, LV_SCROLLBAR_MODE_ACTIVE);
+    lv_textarea_set_text(ta_hist,
+        "+------------------------------------------+\n"
+        "|  CYD SSH Terminal  v2.1                  |\n"
+        "|  Pi5: " SSH_HOST "  [KB]=an phim         |\n"
+        "|  [WEB]=kiem tra web  'help'=xem lenh     |\n"
+        "+------------------------------------------+\n\n"
+    );
+
+    /* ── Bottom bar styles ── */
+    static lv_style_t st_bar, st_btn_n, st_btn_p;
+    lv_style_init(&st_bar);
+    lv_style_set_bg_color    (&st_bar, C_BAR);
+    lv_style_set_bg_opa      (&st_bar, LV_OPA_COVER);
+    lv_style_set_text_color  (&st_bar, lv_color_hex(0xAAFFAA));
+    lv_style_set_text_font   (&st_bar, &lv_font_unscii_8);
+    lv_style_set_border_color(&st_bar, C_DKGREEN);
+    lv_style_set_border_width(&st_bar, 1);
+    lv_style_set_border_side (&st_bar, LV_BORDER_SIDE_TOP);
+    lv_style_set_radius      (&st_bar, 0);
+    lv_style_set_pad_all     (&st_bar, 4);
+
+    lv_style_init(&st_btn_n);
+    lv_style_set_bg_color    (&st_btn_n, lv_color_hex(0x003300));
+    lv_style_set_bg_opa      (&st_btn_n, LV_OPA_COVER);
+    lv_style_set_text_color  (&st_btn_n, C_GREEN);
+    lv_style_set_text_font   (&st_btn_n, &lv_font_unscii_8);
+    lv_style_set_border_color(&st_btn_n, C_DKGREEN);
+    lv_style_set_border_width(&st_btn_n, 1);
+    lv_style_set_radius      (&st_btn_n, 3);
+    lv_style_set_pad_all     (&st_btn_n, 0);
+
+    lv_style_init(&st_btn_p);
+    lv_style_set_bg_color    (&st_btn_p, lv_color_hex(0x00AA00));
+
+    int bar_y = SCR_H - KB_H - BAR_H;
+
+    /* ta_cmd */
+    ta_cmd = lv_textarea_create(scr);
+    lv_obj_set_size(ta_cmd, SCR_W - 108, BAR_H);
+    lv_obj_set_pos (ta_cmd, 0, bar_y);
+    lv_obj_add_style(ta_cmd, &st_bar, 0);
+    lv_textarea_set_one_line(ta_cmd, true);
+    lv_textarea_set_placeholder_text(ta_cmd, SSH_USER "@pi5:~$ ");
+
+    /* [WEB] */
+    lv_obj_t *btn_web = lv_button_create(scr);
+    lv_obj_set_size(btn_web, 52, BAR_H);
+    lv_obj_set_pos (btn_web, SCR_W - 108, bar_y);
+    lv_obj_add_style(btn_web, &st_btn_n, 0);
+    lv_obj_add_style(btn_web, &st_btn_p, LV_STATE_PRESSED);
+    lv_obj_add_event_cb(btn_web, btn_web_cb, LV_EVENT_CLICKED, nullptr);
+    { lv_obj_t *l = lv_label_create(btn_web); lv_label_set_text(l, "WEB"); lv_obj_center(l); }
+
+    /* [KB] */
+    lv_obj_t *btn_kb = lv_button_create(scr);
+    lv_obj_set_size(btn_kb, 52, BAR_H);
+    lv_obj_set_pos (btn_kb, SCR_W - 54, bar_y);
+    lv_obj_add_style(btn_kb, &st_btn_n, 0);
+    lv_obj_add_style(btn_kb, &st_btn_p, LV_STATE_PRESSED);
+    lv_obj_add_event_cb(btn_kb, btn_kb_cb, LV_EVENT_CLICKED, nullptr);
+    { lv_obj_t *l = lv_label_create(btn_kb); lv_label_set_text(l, "KB"); lv_obj_center(l); }
+
+    /* ── Keyboard (luon hien) ── */
+    static lv_style_t st_kb, st_key;
+    lv_style_init(&st_kb);
+    lv_style_set_bg_color    (&st_kb, lv_color_hex(0x001900));
+    lv_style_set_bg_opa      (&st_kb, LV_OPA_COVER);
+    lv_style_set_border_width(&st_kb, 0);
+    lv_style_set_radius      (&st_kb, 0);
+
+    lv_style_init(&st_key);
+    lv_style_set_bg_color    (&st_key, lv_color_hex(0x003300));
+    lv_style_set_text_color  (&st_key, C_GREEN);
+    lv_style_set_text_font   (&st_key, &lv_font_unscii_8);
+    lv_style_set_border_color(&st_key, C_DKGREEN);
+    lv_style_set_border_width(&st_key, 1);
+    lv_style_set_radius      (&st_key, 3);
+
+    kb = lv_keyboard_create(scr);
+    lv_obj_set_size(kb, SCR_W, KB_H);
+    lv_obj_set_pos (kb, 0, SCR_H - KB_H);
+    lv_obj_add_style(kb, &st_kb,  0);
+    lv_obj_add_style(kb, &st_key, LV_PART_ITEMS);
+    lv_keyboard_set_textarea(kb, ta_cmd);
+    lv_obj_add_event_cb(kb, kb_cb, LV_EVENT_ALL, nullptr);
+    kb_open = true;
+}
+
+/* ============================================================
+   setup()
+
+   ══════════════════════════════════════════════════════════ */
+void setup()
+{
+    Serial.begin(115200);
+
+    /* Backlight */
+    pinMode(TFT_BL_PIN, OUTPUT);
+    digitalWrite(TFT_BL_PIN, HIGH);
+
+    /* ILI9488 landscape 480×320 */
+    tft.init();
+    tft.setRotation(1);
+    tft.fillScreen(TFT_RED);    // RED = TFT OK, LVGL chua chay
+    Serial.println("[ok] TFT init");
+
+    /* XPT2046 HSPI polling mode */
+    pinMode(T_IRQ, INPUT);
+    touchSPI.begin(T_CLK, T_MISO, T_MOSI, -1);  // -1: XPT2046 tự quản CS
+    ts.begin(touchSPI);
+    ts.setRotation(1);
+
+    /* Cấp phát LVGL buffers — thử DMA trước, fallback về heap thường */
+    size_t buf_size = SCR_W * BUF_ROWS * sizeof(lv_color_t);
+    buf_a = (lv_color_t*)heap_caps_malloc(buf_size, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+    buf_b = (lv_color_t*)heap_caps_malloc(buf_size, MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL);
+    if (!buf_a) buf_a = (lv_color_t*)malloc(buf_size);
+    if (!buf_b) buf_b = (lv_color_t*)malloc(buf_size);
+    Serial.printf("[mem] buf_a=%p buf_b=%p size=%u free_dma=%u\n",
+                  buf_a, buf_b, buf_size,
+                  heap_caps_get_free_size(MALLOC_CAP_DMA | MALLOC_CAP_INTERNAL));
+
+    /* LVGL 9 */
+    lv_init();
+    lv_tick_set_cb((lv_tick_get_cb_t)millis);
+
+    lv_display_t *disp = lv_display_create(SCR_W, SCR_H);
+    lv_display_set_flush_cb(disp, lv_flush_cb);
+    /* BUG FIX: dùng buf_size thay vì sizeof(buf_a) (= 4 bytes!) */
+    lv_display_set_buffers(disp, buf_a, buf_b, buf_size,
+                           LV_DISPLAY_RENDER_MODE_PARTIAL);
+
+    lv_indev_t *indev = lv_indev_create();
+    lv_indev_set_type   (indev, LV_INDEV_TYPE_POINTER);
+    lv_indev_set_read_cb(indev, lv_touch_cb);
+
+    /* Build UI */
+    tft.fillScreen(TFT_BLUE);   // BLUE = LVGL buf OK, build_ui chua chay
+    Serial.println("[ok] LVGL init, starting build_ui");
+    build_ui();
+    tft.fillScreen(TFT_GREEN);  // GREEN = build_ui OK (se bi ghi de ngay)
+    Serial.println("[ok] build_ui done");
+    lv_timer_handler();
+
+    /* FreeRTOS queues cho SSH */
+    q_cmd    = xQueueCreate(4, sizeof(SshMsg));
+    q_result = xQueueCreate(4, sizeof(SshMsg));
+
+    /* SSH task — core 0, stack 52 KB */
+    xTaskCreatePinnedToCore(ssh_task, "ssh", 53248, nullptr, 1, nullptr, 0);
+
+    /* WiFi */
+    term_printf("Ket noi WiFi: %s\n", WIFI_SSID);
+    lv_timer_handler();
+    WiFi.begin(WIFI_SSID, WIFI_PASS);
+    for (int i = 0; i < 40 && WiFi.status() != WL_CONNECTED; i++) {
+        delay(500); term_append("."); lv_timer_handler();
+    }
+    if (WiFi.status() == WL_CONNECTED)
+        term_printf("\nWiFi OK: %s\n\n", WiFi.localIP().toString().c_str());
+    else
+        term_append("\n[!] WiFi that bai\n\n");
+
+    /* Tự động kết nối SSH khi boot */
+    send_ssh("__CONNECT__");
+}
+
+/* ══════════════════════════════════════════════════════════
+   loop()
+   ══════════════════════════════════════════════════════════ */
+void loop()
+{
+    lv_timer_handler();
+
+    /* Giữ keyboard luon hien khi kb_open = true
+       LVGL keyboard class tu an khi nhan DEFOCUSED — fix bang polling */
+    if (kb_open) {
+        if (lv_obj_has_flag(kb, LV_OBJ_FLAG_HIDDEN))
+            lv_obj_remove_flag(kb, LV_OBJ_FLAG_HIDDEN);
+        if (lv_keyboard_get_textarea(kb) != ta_cmd)
+            lv_keyboard_set_textarea(kb, ta_cmd);
+    }
+
+    /* Ket qua SSH */
+    if (waiting_result) {
+        SshMsg msg;
+        if (xQueueReceive(q_result, &msg, 0) == pdTRUE) {
+            term_append(msg.text);
+            waiting_result = false;
+        }
+    }
+
+    delay(5);
+}
