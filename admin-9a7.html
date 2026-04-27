@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="vi" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin – ElectroShop</title>
+  <style>
+    :root {
+      --grad-start: #2563eb; --grad-mid: #7c3aed; --grad-end: #db2777;
+      --bg: #f8fafc; --surface: #ffffff; --text: #1e293b;
+      --text-muted: #64748b; --border: #e2e8f0;
+      --shadow: 0 4px 24px rgba(37,99,235,.10);
+      --radius: 14px; --transition: .3s cubic-bezier(.4,0,.2,1);
+    }
+    [data-theme="dark"] {
+      --bg:#0f172a; --surface:#1e293b; --text:#f1f5f9;
+      --text-muted:#94a3b8; --border:#334155; --shadow:0 4px 24px rgba(0,0,0,.4);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family:'Segoe UI',system-ui,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+    a { text-decoration:none; color:inherit; }
+
+    /* Header */
+    header {
+      position:sticky; top:0; z-index:100;
+      background:var(--surface); border-bottom:1px solid var(--border);
+      box-shadow:0 2px 12px rgba(0,0,0,.06);
+    }
+    .header-inner {
+      max-width:1200px; margin:0 auto; padding:0 20px;
+      height:64px; display:flex; align-items:center; justify-content:space-between; gap:16px;
+    }
+    .logo {
+      font-size:1.4rem; font-weight:800;
+      background:linear-gradient(135deg,var(--grad-start),var(--grad-mid),var(--grad-end));
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    }
+    .badge-admin {
+      background:linear-gradient(135deg,var(--grad-start),var(--grad-mid));
+      color:#fff; font-size:.72rem; font-weight:700;
+      padding:3px 10px; border-radius:999px; margin-left:8px;
+      -webkit-text-fill-color:#fff;
+    }
+    .btn-icon {
+      width:40px; height:40px; border-radius:50%;
+      border:1px solid var(--border); background:var(--surface);
+      display:flex; align-items:center; justify-content:center;
+      cursor:pointer; font-size:1.1rem; transition:all var(--transition); color:var(--text);
+    }
+    .btn-icon:hover { background:var(--bg); transform:scale(1.08); }
+
+    /* Status banner */
+    #statusBanner {
+      padding:10px 20px; text-align:center; font-size:.88rem; font-weight:600;
+      transition:all var(--transition); display:none;
+    }
+    #statusBanner.loading { background:#fef9c3; color:#854d0e; display:block; }
+    #statusBanner.success { background:#dcfce7; color:#166534; display:block; }
+    #statusBanner.error   { background:#fee2e2; color:#991b1b; display:block; }
+
+    /* Main */
+    main { max-width:1200px; margin:0 auto; padding:32px 20px 60px; }
+    .page-title { font-size:1.8rem; font-weight:900; margin-bottom:24px; }
+    .page-title span {
+      background:linear-gradient(135deg,var(--grad-start),var(--grad-end));
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text;
+    }
+
+    /* Stats row */
+    .stats-row { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:16px; margin-bottom:32px; }
+    .stat-card {
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:var(--radius); padding:20px; box-shadow:var(--shadow);
+      display:flex; flex-direction:column; gap:4px;
+    }
+    .stat-label { font-size:.8rem; color:var(--text-muted); font-weight:600; text-transform:uppercase; letter-spacing:.05em; }
+    .stat-value { font-size:2rem; font-weight:900; }
+    .stat-value.blue { background:linear-gradient(135deg,var(--grad-start),var(--grad-mid)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .stat-value.green { color:#22c55e; }
+    .stat-value.red { color:#ef4444; }
+
+    /* Section card */
+    .section-card {
+      background:var(--surface); border:1px solid var(--border);
+      border-radius:var(--radius); padding:28px; box-shadow:var(--shadow); margin-bottom:28px;
+    }
+    .section-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px; }
+    .section-header h2 { font-size:1.2rem; font-weight:800; }
+
+    /* Buttons */
+    .btn {
+      padding:10px 20px; border-radius:10px; border:none;
+      font-weight:700; font-size:.88rem; cursor:pointer;
+      transition:all var(--transition); display:inline-flex; align-items:center; gap:6px;
+    }
+    .btn-primary { background:linear-gradient(135deg,var(--grad-start),var(--grad-mid)); color:#fff; box-shadow:0 4px 14px rgba(124,58,237,.3); }
+    .btn-primary:hover { opacity:.88; transform:translateY(-1px); }
+    .btn-success { background:#22c55e; color:#fff; }
+    .btn-success:hover { background:#16a34a; transform:translateY(-1px); }
+    .btn-outline { background:transparent; border:2px solid var(--grad-start); color:var(--grad-start); }
+    .btn-outline:hover { background:var(--grad-start); color:#fff; }
+    .btn-danger { background:#ef4444; color:#fff; }
+    .btn-danger:hover { background:#dc2626; }
+    .btn-sm { padding:6px 14px; font-size:.8rem; }
+    .btn:disabled { opacity:.5; cursor:not-allowed; transform:none !important; }
+
+    /* Product table */
+    .table-wrap { overflow-x:auto; }
+    table { width:100%; border-collapse:collapse; font-size:.9rem; }
+    th { text-align:left; padding:12px 14px; background:var(--bg); color:var(--text-muted); font-size:.78rem; text-transform:uppercase; letter-spacing:.05em; border-bottom:1px solid var(--border); }
+    td { padding:12px 14px; border-bottom:1px solid var(--border); vertical-align:middle; }
+    tr:last-child td { border-bottom:none; }
+    tr:hover td { background:var(--bg); }
+    .product-img-thumb { width:48px; height:48px; border-radius:8px; object-fit:cover; background:var(--bg); border:1px solid var(--border); }
+    .product-img-icon { width:48px; height:48px; border-radius:8px; background:linear-gradient(135deg,#dbeafe,#ede9fe); display:flex; align-items:center; justify-content:center; font-size:1.6rem; }
+    .tag-loai {
+      display:inline-block; padding:2px 10px; border-radius:999px;
+      background:var(--bg); border:1px solid var(--border);
+      font-size:.75rem; font-weight:600; color:var(--text-muted);
+    }
+    .mo-ta-cell { max-width:260px; color:var(--text-muted); font-size:.82rem; line-height:1.5; }
+    .mo-ta-empty { color:#ef4444; font-style:italic; font-size:.82rem; }
+    .mo-ta-wrap { display:flex; align-items:flex-start; gap:8px; }
+    .btn-ai-auto {
+      flex-shrink:0; padding:4px 10px; border-radius:8px; border:none;
+      background:linear-gradient(135deg,var(--grad-mid),var(--grad-end));
+      color:#fff; font-size:.75rem; font-weight:700; cursor:pointer;
+      transition:all var(--transition); white-space:nowrap;
+    }
+    .btn-ai-auto:hover { opacity:.85; transform:scale(1.05); }
+    .btn-ai-auto:disabled { opacity:.5; cursor:not-allowed; transform:none; }
+    /* Textarea label row */
+    .label-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+    .label-row label { margin-bottom:0; }
+    /* Source badge */
+    .badge-source {
+      display:inline-block; padding:2px 8px; border-radius:999px; font-size:.72rem; font-weight:700;
+      margin-left:8px; vertical-align:middle;
+    }
+    .badge-gemini { background:#e0f2fe; color:#0369a1; }
+    .badge-fallback { background:#fef9c3; color:#854d0e; }
+    .price-cell { font-weight:700; white-space:nowrap;
+      background:linear-gradient(135deg,var(--grad-start),var(--grad-mid));
+      -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
+    .action-cell { display:flex; gap:8px; flex-wrap:wrap; }
+
+    /* Generate modal overlay */
+    .modal-overlay {
+      position:fixed; inset:0; background:rgba(0,0,0,.45); backdrop-filter:blur(4px);
+      z-index:200; display:none; align-items:center; justify-content:center; padding:20px;
+    }
+    .modal-overlay.open { display:flex; }
+    .modal {
+      background:var(--surface); border-radius:var(--radius); padding:32px;
+      max-width:560px; width:100%; box-shadow:0 20px 60px rgba(0,0,0,.3);
+      animation:slideUp .25s ease;
+    }
+    @keyframes slideUp { from { opacity:0; transform:translateY(20px); } to { opacity:1; transform:translateY(0); } }
+    .modal h3 { font-size:1.2rem; font-weight:800; margin-bottom:20px; }
+    .form-group { margin-bottom:16px; }
+    label { display:block; font-size:.85rem; font-weight:700; margin-bottom:6px; color:var(--text-muted); }
+    input[type=text], input[type=number], textarea, select {
+      width:100%; padding:12px 14px; border-radius:10px;
+      border:1px solid var(--border); background:var(--bg); color:var(--text);
+      font-size:.9rem; font-family:inherit; outline:none;
+      transition:border-color var(--transition);
+    }
+    input:focus, textarea:focus, select:focus { border-color:var(--grad-start); }
+    textarea { resize:vertical; min-height:100px; }
+    .modal-actions { display:flex; gap:10px; justify-content:flex-end; margin-top:20px; flex-wrap:wrap; }
+    .generating-anim { display:inline-block; animation:spin 1s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+
+    footer { background:var(--surface); border-top:1px solid var(--border); text-align:center; padding:24px; color:var(--text-muted); font-size:.85rem; }
+  </style>
+  <script src="api.js"></script>
+</head>
+<body>
+
+<!-- ===== PASSWORD PROTECTION OVERLAY ===== -->
+<div id="authOverlay" style="
+  position:fixed;inset:0;z-index:99999;
+  background:linear-gradient(135deg,#0f172a,#1e1b4b,#0f172a);
+  display:flex;align-items:center;justify-content:center;
+">
+  <div style="
+    background:#1e293b;border:1px solid #334155;border-radius:20px;
+    padding:44px 40px;max-width:400px;width:90%;text-align:center;
+    box-shadow:0 24px 80px rgba(0,0,0,.6);
+  ">
+    <div style="font-size:3rem;margin-bottom:8px;">🔐</div>
+    <h2 style="color:#f1f5f9;font-size:1.4rem;font-weight:900;margin-bottom:6px;">ElectroShop Admin</h2>
+    <p style="color:#64748b;font-size:.88rem;margin-bottom:28px;">Nhập mật khẩu để tiếp tục</p>
+    <input id="authInput" type="password" placeholder="Mật khẩu..." autocomplete="current-password"
+      style="
+        width:100%;padding:13px 18px;border-radius:12px;
+        border:1.5px solid #334155;background:#0f172a;
+        color:#f1f5f9;font-size:1rem;outline:none;margin-bottom:14px;
+        transition:border .2s;
+      "
+      onkeydown="if(event.key==='Enter')verifyAuth()"
+      onfocus="this.style.borderColor='#7c3aed'"
+      onblur="this.style.borderColor='#334155'"
+    />
+    <button onclick="verifyAuth()" style="
+      width:100%;padding:13px;border:none;border-radius:12px;
+      background:linear-gradient(135deg,#7c3aed,#2563eb);
+      color:#fff;font-size:1rem;font-weight:700;cursor:pointer;
+      transition:opacity .2s;
+    " onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
+      🔓 Đăng nhập
+    </button>
+    <p id="authError" style="color:#ef4444;font-size:.83rem;margin-top:12px;display:none;">
+      ❌ Mật khẩu không đúng!
+    </p>
+    <p style="color:#475569;font-size:.72rem;margin-top:20px;">
+      Chỉ dành cho quản trị viên ElectroShop
+    </p>
+  </div>
+</div>
+
+<script>
+/* ── PASSWORD PROTECTION ──
+ * Không lưu plain text — chỉ lưu SHA-256 hash.
+ * Mật khẩu mặc định: Admin@ElectroShop2025
+ * Để đổi mật khẩu:
+ *   1. Vào https://emn178.github.io/online-tools/sha256.html
+ *   2. Nhập mật khẩu mới → copy hash
+ *   3. Thay giá trị ADMIN_HASH bên dưới
+ */
+const ADMIN_HASH = 'f05813d741f2b78c49de41247dec350cf913b710aaa8ad19fcfc36dc3047a9fc';
+const SESSION_KEY = 'es_admin_v1';
+
+async function sha256(str) {
+  const buf = await crypto.subtle.digest('SHA-256',
+    new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf))
+    .map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function verifyAuth() {
+  const val = document.getElementById('authInput').value;
+  const hash = await sha256(val);
+  if (hash === ADMIN_HASH) {
+    sessionStorage.setItem(SESSION_KEY, hash);
+    document.getElementById('authOverlay').style.display = 'none';
+  } else {
+    const errEl = document.getElementById('authError');
+    errEl.style.display = 'block';
+    document.getElementById('authInput').value = '';
+    document.getElementById('authInput').focus();
+    setTimeout(() => errEl.style.display = 'none', 3000);
+  }
+}
+
+// Kiểm tra session khi tải trang
+(async () => {
+  const stored = sessionStorage.getItem(SESSION_KEY);
+  if (stored && stored === ADMIN_HASH) {
+    document.getElementById('authOverlay').style.display = 'none';
+  } else {
+    document.getElementById('authInput').focus();
+  }
+})();
+</script>
+<!-- ===== END PASSWORD PROTECTION ===== -->
+
+<header>
+  <div class="header-inner">
+    <div style="display:flex;align-items:center;">
+      <a href="index.html" class="logo">⚡ ElectroShop</a>
+      <span class="badge-admin">ADMIN</span>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center;">
+      <a href="index.html"><button class="btn btn-outline btn-sm">🏠 Trang chủ</button></a>
+      <button class="btn-icon" id="themeToggle" title="Đổi giao diện">🌙</button>
+      <button class="btn-icon" title="Khóa Admin" onclick="sessionStorage.removeItem('es_admin_v1');location.reload();" style="font-size:1rem;">🔒</button>
+    </div>
+  </div>
+</header>
+
+<div id="statusBanner"></div>
+
+<main>
+  <h1 class="page-title">⚙️ Quản lý <span>Sản phẩm</span></h1>
+
+  <!-- Stats -->
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card">
+      <div class="stat-label">Tổng sản phẩm</div>
+      <div class="stat-value blue" id="statTotal">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Có mô tả</div>
+      <div class="stat-value green" id="statHasDesc">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Thiếu mô tả</div>
+      <div class="stat-value red" id="statNoDesc">—</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">AI Server</div>
+      <div class="stat-value" id="statServer" style="font-size:1.2rem;">⏳</div>
+    </div>
+  </div>
+
+  <!-- Products table -->
+  <div class="section-card">
+    <div class="section-header">
+      <h2>📦 Danh sách sản phẩm</h2>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-success" onclick="fillAllEmpty()">🤖 Tự động điền tất cả mô tả trống</button>
+        <button class="btn btn-outline" onclick="loadProducts()">🔄 Làm mới</button>
+      </div>
+    </div>
+    <div class="table-wrap">
+      <table id="productTable">
+        <thead>
+          <tr>
+            <th>Ảnh</th>
+            <th>Tên sản phẩm</th>
+            <th>Giá</th>
+            <th>Loại</th>
+            <th>Mô tả</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody id="productTbody">
+          <tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted);">⏳ Đang tải...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ===== NEWS SECTION ===== -->
+  <div class="section-card" style="margin-top:8px;">
+    <div class="section-header">
+      <h2>📰 Quản lý Tin tức</h2>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="openNewsModal()">➕ Thêm bài mới</button>
+        <button class="btn btn-outline" onclick="loadNewsList()">🔄 Làm mới</button>
+      </div>
+    </div>
+    <div id="newsEmpty" style="text-align:center;padding:40px;color:var(--text-muted);display:none;">
+      📭 Chưa có bài viết nào. Nhấn <strong>Thêm bài mới</strong> để bắt đầu!
+    </div>
+    <div class="table-wrap" id="newsTableWrap">
+      <table id="newsTable">
+        <thead>
+          <tr>
+            <th>Tiêu đề</th>
+            <th>Danh mục</th>
+            <th>Tác giả</th>
+            <th>Ngày đăng</th>
+            <th>Thao tác</th>
+          </tr>
+        </thead>
+        <tbody id="newsTbody">
+          <tr><td colspan="5" style="text-align:center;padding:30px;color:var(--text-muted);">⏳ Đang tải...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</main>
+
+<!-- Modal News -->
+<div class="modal-overlay" id="newsModal">
+  <div class="modal" style="max-width:580px;">
+    <h3 id="newsModalTitle">➕ Thêm bài viết mới</h3>
+    <div class="form-group">
+      <label>Tiêu đề <span style="color:#ef4444">*</span></label>
+      <input type="text" id="newsTieuDe" placeholder="Tiêu đề bài viết..." />
+    </div>
+    <div class="form-group">
+      <label>Tóm tắt</label>
+      <input type="text" id="newsTomTat" placeholder="Tóm tắt ngắn gọn..." />
+    </div>
+    <div class="form-group">
+      <label>Danh mục</label>
+      <select id="newsDanhMuc" style="width:100%;padding:10px;border:1.5px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-size:.9rem;">
+        <option value="">-- Chọn danh mục --</option>
+        <option value="Công nghệ">💻 Công nghệ</option>
+        <option value="Sản phẩm mới">🆕 Sản phẩm mới</option>
+        <option value="Khuyến mãi">🔥 Khuyến mãi</option>
+        <option value="Hướng dẫn">📖 Hướng dẫn</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Tác giả</label>
+      <input type="text" id="newsTacGia" placeholder="Ban biên tập..." />
+    </div>
+    <div class="form-group">
+      <label>Icon bài viết (emoji)</label>
+      <input type="text" id="newsIcon" placeholder="📱 hoặc 💻 ..." maxlength="4" />
+    </div>
+    <div class="form-group">
+      <label>Nội dung <span style="color:#ef4444">*</span></label>
+      <textarea id="newsNoiDung" rows="6" placeholder="Nội dung đầy đủ bài viết..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeNewsModal()">Hủy</button>
+      <button class="btn btn-primary" onclick="saveNews()">💾 Lưu bài viết</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal tạo mô tả -->
+<div class="modal-overlay" id="genModal">
+  <div class="modal">
+    <h3>✨ Tự động tạo mô tả AI</h3>
+    <div class="form-group">
+      <label>Tên sản phẩm</label>
+      <input type="text" id="modalTen" placeholder="Nhập tên sản phẩm..." />
+    </div>
+    <div class="form-group">
+      <label>Giá (VND)</label>
+      <input type="number" id="modalGia" placeholder="250000" />
+    </div>
+    <div class="form-group">
+      <label>Danh mục (loai)</label>
+      <input type="text" id="modalLoai" placeholder="dien-thoai, may-tinh..." />
+    </div>
+    <div class="form-group">
+      <div class="label-row">
+        <label>Mô tả được tạo</label>
+        <button class="btn-ai-auto" id="btnAiAutoModal" onclick="generateDesc()">🤖 AI Auto</button>
+      </div>
+      <textarea id="modalResult" placeholder="Nhấn '🤖 AI Auto' để Gemini sinh mô tả..."></textarea>
+      <div id="sourceInfo" style="font-size:.78rem;color:var(--text-muted);margin-top:6px;display:none;"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Hủy</button>
+      <button class="btn btn-success" id="btnSaveDesc" onclick="saveDesc()" disabled>
+        💾 Lưu vào PocketBase
+      </button>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <p>&copy; 2025 <strong>ElectroShop Admin</strong> — Quản lý sản phẩm nội bộ</p>
+</footer>
+
+<script>
+  /* ===== CONFIG ===== */
+  const AUTO_DESC_SERVER = 'http://localhost:5001';
+  let currentEditId = '';
+
+  /* Helper: lấy Pi URL trực tiếp (admin cần URL thật để write operations) */
+  let _adminBase = null;
+  async function getBase() {
+    // Nếu chạy local → dùng localhost
+    if (API.isLocal) return 'http://localhost:8090';
+    // Nếu trên Vercel → lấy URL Pi từ GitHub (chỉ admin biết cách này)
+    if (_adminBase) return _adminBase;
+    try {
+      const r = await fetch(
+        'https://api.github.com/repos/Thooooooo/electroshop-tunnel/contents/url.txt',
+        { headers: { 'User-Agent': 'ES-Admin' }, cache: 'no-store' }
+      );
+      const d = await r.json();
+      _adminBase = atob(d.content.replace(/\n/g, '')).trim();
+    } catch (e) { _adminBase = ''; }
+    return _adminBase;
+  }
+
+  /* ===== Helpers ===== */
+  function setStatus(type, msg, duration = 4000) {
+    const b = document.getElementById('statusBanner');
+    b.className = type; b.textContent = msg;
+    if (type === 'success' && duration) setTimeout(() => b.style.display = 'none', duration);
+  }
+
+  function fmtPrice(gia) {
+    return Number(gia).toLocaleString('vi-VN') + '₫';
+  }
+
+  /* ===== Check AI server ===== */
+  async function checkServer() {
+    const el = document.getElementById('statServer');
+    try {
+      const res = await fetch(`${AUTO_DESC_SERVER}/health`, { signal: AbortSignal.timeout(3000) });
+      if (res.ok) { el.textContent = '✅ Online'; el.style.color = '#22c55e'; }
+      else throw new Error();
+    } catch {
+      el.textContent = '❌ Offline';
+      el.style.color = '#ef4444';
+    }
+  }
+
+  /* ===== Load products ===== */
+  async function loadProducts() {
+    const base = await getBase();
+    if (!base) { setStatus('error', '❌ Chưa có API URL. Kiểm tra kết nối.'); return; }
+    try {
+      const res = await fetch(`${base}/api/collections/sanpham/records?perPage=200`);
+      const data = await res.json();
+      renderTable(data.items || [], base);
+      updateStats(data.items || []);
+    } catch(e) {
+      setStatus('error', '❌ Không tải được sản phẩm: ' + e.message);
+    }
+  }
+
+  function updateStats(items) {
+    document.getElementById('statTotal').textContent = items.length;
+    const hasDesc = items.filter(p => (p.mo_ta || '').trim()).length;
+    document.getElementById('statHasDesc').textContent = hasDesc;
+    document.getElementById('statNoDesc').textContent = items.length - hasDesc;
+  }
+
+  function renderTable(items, base) {
+    const tbody = document.getElementById('productTbody');
+    if (!items.length) {
+      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text-muted);">Chưa có sản phẩm nào</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = items.map(p => {
+      const imgUrl = (p.anh && p.anh.length && base)
+        ? `${base}/api/files/${p.collectionId}/${p.id}/${p.anh[0]}?thumb=80x80`
+        : null;
+      const imgEl = imgUrl
+        ? `<img class="product-img-thumb" src="${imgUrl}" alt="${p.ten}" />`
+        : `<div class="product-img-icon">🛒</div>`;
+      const descEl = (p.mo_ta || '').trim()
+        ? `<div class="mo-ta-wrap">
+             <span class="mo-ta-cell">${p.mo_ta.slice(0, 90)}${p.mo_ta.length > 90 ? '…' : ''}</span>
+             <button class="btn-ai-auto" title="Tạo lại mô tả bằng AI"
+               onclick="quickAI('${p.id}','${escJs(p.ten)}',${p.gia},'${escJs(p.loai||'')}',this)">
+               🤖 AI Auto
+             </button>
+           </div>`
+        : `<div class="mo-ta-wrap">
+             <span class="mo-ta-empty">⚠️ Chưa có mô tả</span>
+             <button class="btn-ai-auto" title="Tạo mô tả bằng AI"
+               onclick="quickAI('${p.id}','${escJs(p.ten)}',${p.gia},'${escJs(p.loai||'')}',this)">
+               🤖 AI Auto
+             </button>
+           </div>`;
+
+      return `
+        <tr>
+          <td>${imgEl}</td>
+          <td><strong>${p.ten}</strong></td>
+          <td><span class="price-cell">${fmtPrice(p.gia)}</span></td>
+          <td><span class="tag-loai">${p.loai || '—'}</span></td>
+          <td>${descEl}</td>
+          <td>
+            <div class="action-cell">
+              <button class="btn btn-primary btn-sm" onclick="openModal('${p.id}','${escJs(p.ten)}',${p.gia},'${escJs(p.loai||'')}')">
+                ✨ Tự động tạo mô tả
+              </button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  function escJs(s) { return String(s).replace(/'/g, "\\'").replace(/"/g, '\\"'); }
+
+  /* ===== Auto-fill all empty ===== */
+  async function fillAllEmpty() {
+    const base = await getBase();
+    if (!base) { setStatus('error', '❌ Chưa có API URL'); return; }
+    // Re-fetch to get all with empty mo_ta
+    const res = await fetch(`${base}/api/collections/sanpham/records?perPage=200`);
+    const data = await res.json();
+    const empty = (data.items || []).filter(p => !(p.mo_ta || '').trim());
+
+    if (!empty.length) { setStatus('success', '✅ Tất cả sản phẩm đã có mô tả rồi!'); return; }
+    setStatus('loading', `⏳ Đang tạo mô tả cho ${empty.length} sản phẩm…`);
+
+    let done = 0;
+    for (const p of empty) {
+      try {
+        const genRes = await fetch(`${AUTO_DESC_SERVER}/generate`, {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({ten: p.ten, gia: p.gia, loai: p.loai || ''})
+        });
+        const genData = await genRes.json();
+        if (!genData.mo_ta) continue;
+
+        await fetch(`${base}/api/collections/sanpham/records/${p.id}`, {
+          method: 'PATCH', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({mo_ta: genData.mo_ta})
+        });
+        done++;
+        setStatus('loading', `⏳ Đã xử lý ${done}/${empty.length} sản phẩm…`);
+      } catch(e) {
+        console.error('Lỗi với', p.ten, e.message);
+      }
+    }
+    setStatus('success', `✅ Đã tạo mô tả cho ${done}/${empty.length} sản phẩm!`);
+    loadProducts();
+  }
+
+  /* ===== Modal ===== */
+  function openModal(id, ten, gia, loai) {
+    currentEditId = id;
+    document.getElementById('modalTen').value = ten;
+    document.getElementById('modalGia').value = gia;
+    document.getElementById('modalLoai').value = loai;
+    document.getElementById('modalResult').value = '';
+    document.getElementById('btnSaveDesc').disabled = true;
+    document.getElementById('genModal').classList.add('open');
+  }
+
+  function closeModal() {
+    document.getElementById('genModal').classList.remove('open');
+    currentEditId = '';
+  }
+
+  async function generateDesc() {
+    const ten  = document.getElementById('modalTen').value.trim();
+    const gia  = parseFloat(document.getElementById('modalGia').value) || 0;
+    const loai = document.getElementById('modalLoai').value.trim();
+    if (!ten) { alert('Vui lòng nhập tên sản phẩm!'); return; }
+
+    const btn = document.getElementById('btnAiAutoModal');
+    const srcInfo = document.getElementById('sourceInfo');
+    btn.disabled = true;
+    btn.textContent = '⚙️ Đang tạo…';
+    srcInfo.style.display = 'none';
+
+    try {
+      const res = await fetch(`${AUTO_DESC_SERVER}/generate`, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ten, gia, loai})
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      document.getElementById('modalResult').value = data.mo_ta;
+      document.getElementById('btnSaveDesc').disabled = !currentEditId;
+      // Hiện nguồn (Gemini hay fallback)
+      const isGemini = data.source === 'gemini';
+      srcInfo.style.display = 'block';
+      srcInfo.innerHTML = isGemini
+        ? '✅ <span class="badge-source badge-gemini">Gemini AI</span> — mô tả được tạo bởi AI'
+        : '⚠️ <span class="badge-source badge-fallback">Fallback</span> — chưa có API key, dùng mẫu mặc định';
+    } catch(e) {
+      alert('❌ Lỗi: ' + e.message + '\n\nKiểm tra auto_desc.py có đang chạy không?');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '🤖 AI Auto';
+    }
+  }
+
+  /* Nút AI Auto inline trong bảng — tạo và lưu ngay */
+  async function quickAI(id, ten, gia, loai, btnEl) {
+    const base = await getBase();
+    if (!base) { setStatus('error', '❌ Chưa có API URL'); return; }
+    btnEl.disabled = true;
+    btnEl.textContent = '⚙️…';
+    try {
+      const genRes = await fetch(`${AUTO_DESC_SERVER}/generate`, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ten, gia, loai})
+      });
+      const genData = await genRes.json();
+      if (!genData.mo_ta) throw new Error('Không nhận được mô tả');
+
+      const saveRes = await fetch(`${base}/api/collections/sanpham/records/${id}`, {
+        method: 'PATCH', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({mo_ta: genData.mo_ta})
+      });
+      if (!saveRes.ok) throw new Error(`Lưu thất bại HTTP ${saveRes.status}`);
+
+      const src = genData.source === 'gemini' ? '✅ Gemini AI' : '⚠️ Fallback';
+      setStatus('success', `${src} — Đã tạo & lưu mô tả cho "${ten}"!`);
+      loadProducts();
+    } catch(e) {
+      setStatus('error', '❌ ' + e.message);
+      btnEl.disabled = false;
+      btnEl.textContent = '🤖 AI Auto';
+    }
+  }
+
+  async function saveDesc() {
+    if (!currentEditId) return;
+    const base = await getBase();
+    if (!base) { alert('Chưa có API URL!'); return; }
+    const mo_ta = document.getElementById('modalResult').value.trim();
+    if (!mo_ta) { alert('Chưa có mô tả để lưu!'); return; }
+
+    try {
+      const res = await fetch(`${base}/api/collections/sanpham/records/${currentEditId}`, {
+        method: 'PATCH', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({mo_ta})
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      closeModal();
+      setStatus('success', '✅ Đã lưu mô tả thành công!');
+      loadProducts();
+    } catch(e) {
+      alert('❌ Không lưu được: ' + e.message);
+    }
+  }
+
+  // Đóng modal khi click ra ngoài
+  document.getElementById('genModal').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+  document.getElementById('newsModal').addEventListener('click', function(e) {
+    if (e.target === this) closeNewsModal();
+  });
+
+  /* ===== NEWS CRUD ===== */
+  let editNewsId = '';
+
+  async function loadNewsList() {
+    const tbody = document.getElementById('newsTbody');
+    const data = await API.fetchNews({ perPage: 100, sort: '-created' });
+    const items = data.items || [];
+
+    if (!items.length) {
+      document.getElementById('newsEmpty').style.display = 'block';
+      document.getElementById('newsTableWrap').style.display = 'none';
+      return;
+    }
+    document.getElementById('newsEmpty').style.display = 'none';
+    document.getElementById('newsTableWrap').style.display = '';
+
+    tbody.innerHTML = items.map(a => `
+      <tr>
+        <td style="max-width:280px;">
+          ${a.icon ? `<span style="margin-right:6px;">${a.icon}</span>` : ''}
+          <strong>${escHtml(a.tieu_de || '')}</strong>
+          ${a.tom_tat ? `<br><span style="font-size:.78rem;color:var(--text-muted);">${escHtml(a.tom_tat.substring(0,80))}</span>` : ''}
+        </td>
+        <td>${a.danh_muc ? `<span class="tag-loai">${escHtml(a.danh_muc)}</span>` : '—'}</td>
+        <td>${escHtml(a.tac_gia || '—')}</td>
+        <td style="white-space:nowrap;font-size:.82rem;">${fmtDate(a.created)}</td>
+        <td>
+          <button class="btn btn-outline btn-sm" style="margin-right:6px;"
+            onclick="editNews('${a.id}')">✏️ Sửa</button>
+          <button class="btn btn-danger btn-sm"
+            onclick="deleteNewsItem('${a.id}','${escJs(a.tieu_de||'')}')">🗑️</button>
+        </td>
+      </tr>`).join('');
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('vi-VN');
+  }
+
+  function escHtml(s) {
+    return String(s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function openNewsModal(article) {
+    editNewsId = article ? article.id : '';
+    document.getElementById('newsModalTitle').textContent =
+      article ? '✏️ Sửa bài viết' : '➕ Thêm bài viết mới';
+    document.getElementById('newsTieuDe').value  = article?.tieu_de  || '';
+    document.getElementById('newsTomTat').value  = article?.tom_tat  || '';
+    document.getElementById('newsDanhMuc').value = article?.danh_muc || '';
+    document.getElementById('newsTacGia').value  = article?.tac_gia  || '';
+    document.getElementById('newsIcon').value    = article?.icon     || '';
+    document.getElementById('newsNoiDung').value = article?.noi_dung || '';
+    document.getElementById('newsModal').style.display = 'flex';
+  }
+
+  function closeNewsModal() {
+    document.getElementById('newsModal').style.display = 'none';
+    editNewsId = '';
+  }
+
+  async function editNews(id) {
+    try {
+      const a = await API.fetchNewsItem(id);
+      openNewsModal(a);
+    } catch(e) { alert('Không tải được bài viết: ' + e.message); }
+  }
+
+  async function saveNews() {
+    const tieu_de = document.getElementById('newsTieuDe').value.trim();
+    const noi_dung = document.getElementById('newsNoiDung').value.trim();
+    if (!tieu_de) { alert('Vui lòng nhập tiêu đề!'); return; }
+    if (!noi_dung) { alert('Vui lòng nhập nội dung!'); return; }
+
+    const payload = {
+      tieu_de,
+      noi_dung,
+      tom_tat:  document.getElementById('newsTomTat').value.trim(),
+      danh_muc: document.getElementById('newsDanhMuc').value,
+      tac_gia:  document.getElementById('newsTacGia').value.trim() || 'Ban biên tập',
+      icon:     document.getElementById('newsIcon').value.trim(),
+    };
+
+    try {
+      if (editNewsId) {
+        await API.updateNews(editNewsId, payload);
+        setStatus('success', '✅ Đã cập nhật bài viết!');
+      } else {
+        await API.createNews(payload);
+        setStatus('success', '✅ Đã đăng bài viết mới!');
+      }
+      closeNewsModal();
+      loadNewsList();
+    } catch(e) {
+      alert('❌ Lỗi: ' + e.message + '\n\nLưu ý: Collection "tintuc" phải tồn tại trong PocketBase!');
+    }
+  }
+
+  async function deleteNewsItem(id, title) {
+    if (!confirm(`Xoá bài: "${title}"?\nHành động này không thể hoàn tác!`)) return;
+    const ok = await API.deleteNews(id);
+    if (ok) {
+      setStatus('success', '🗑️ Đã xóa bài viết!');
+      loadNewsList();
+    } else {
+      setStatus('error', '❌ Không xóa được bài viết');
+    }
+  }
+
+  /* ===== Dark/Light mode ===== */
+  const themeToggle = document.getElementById('themeToggle');
+  function applyTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+    themeToggle.textContent = t === 'dark' ? '☀️' : '🌙';
+    localStorage.setItem('es-theme', t);
+  }
+  themeToggle.addEventListener('click', () => {
+    applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark');
+  });
+  const saved = localStorage.getItem('es-theme');
+  if (saved) applyTheme(saved);
+  else if (window.matchMedia('(prefers-color-scheme: dark)').matches) applyTheme('dark');
+
+  /* ===== Init ===== */
+  (async () => {
+    await Promise.all([loadProducts(), checkServer(), loadNewsList()]);
+    setInterval(checkServer, 30000);
+  })();
+</script>
+</body>
+</html>
