@@ -88,13 +88,17 @@ def add_to_pocketbase(data):
     try:
         url = f'{POCKETBASE_URL}/api/collections/{POCKETBASE_SANPHAM_COLLECTION}/records'
         payload = {
-            'ten': data.get('name', ''),
-            'gia': parse_price(data.get('price', 0)),
-            'loai': data.get('category', ''),
+            'ten':   data.get('name', ''),
+            'gia':   parse_price(data.get('price', 0)),
+            'loai':  data.get('category', ''),
             'mo_ta': data.get('description', ''),
             'stock': int(data.get('stock', 0)),
-            'icon': data.get('icon', '📦'),
+            'icon':  data.get('icon', '📦'),
         }
+        # Lưu URL ảnh vào trường anh_url (text) nếu có
+        image_url = data.get('image_url', '').strip()
+        if image_url:
+            payload['anh_url'] = image_url
         response = requests.post(url, json=payload, timeout=5)
         response.raise_for_status()
         return response.json()
@@ -904,11 +908,13 @@ def api_products():
 
         # 1) Try PocketBase
         result = add_to_pocketbase({
-            'name': name, 'price': price,
+            'name':        name,
+            'price':       price,
             'description': d.get('description', ''),
-            'category': d.get('category', ''),
-            'stock': d.get('stock', 0),
-            'icon': d.get('icon', '📦'),
+            'category':    d.get('category', ''),
+            'stock':       d.get('stock', 0),
+            'icon':        d.get('icon', '📦'),
+            'image_url':   d.get('image_url', ''),   # ← truyền ảnh xuống
         })
         if result:
             return jsonify(result), 201
@@ -917,9 +923,9 @@ def api_products():
         try:
             with get_db() as c:
                 c.execute(
-                    'INSERT INTO products(name,price,category,description,stock,icon) VALUES(?,?,?,?,?,?)',
+                    'INSERT INTO products(name,price,category,description,stock,icon,image) VALUES(?,?,?,?,?,?,?)',
                     (name, str(price), d.get('category', ''), d.get('description', ''),
-                     int(d.get('stock', 0)), d.get('icon', '📦'))
+                     int(d.get('stock', 0)), d.get('icon', '📦'), d.get('image_url', ''))  # ← lưu ảnh
                 )
                 c.commit()
                 row = c.execute("SELECT * FROM products WHERE rowid = last_insert_rowid()").fetchone()
