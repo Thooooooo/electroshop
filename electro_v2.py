@@ -102,8 +102,14 @@ def add_to_pocketbase(data):
         print(f'[PocketBase] Error adding product: {e}')
         return None
 
-DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'v2.db')
-UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads')
+# ── Vercel / local path detection ────────────────────────────────────────────
+IS_VERCEL = bool(os.environ.get('VERCEL') or os.environ.get('VERCEL_ENV'))
+
+_BASE = os.path.dirname(os.path.abspath(__file__))
+DB         = '/tmp/v2.db'        if IS_VERCEL else os.path.join(_BASE, 'v2.db')
+UPLOAD_DIR = '/tmp/uploads'      if IS_VERCEL else os.path.join(_BASE, 'static', 'uploads')
+IMAGES_DIR_DEFAULT = '/tmp/images' if IS_VERCEL else os.path.join(_BASE, 'static', 'images')
+
 ALLOWED_EXT = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -136,6 +142,28 @@ def get_db():
     c = sqlite3.connect(DB)
     c.row_factory = sqlite3.Row
     return c
+
+def normalize_product(row):
+    """Convert a SQLite Row (or dict) to a normalized product dict with both
+    Vietnamese and English field aliases so the frontend never breaks."""
+    d = dict(row)
+    return {
+        'id':          d.get('id'),
+        'name':        d.get('name', ''),
+        'ten':         d.get('name', ''),
+        'price':       str(d.get('price', 0)),
+        'gia':         d.get('price', 0),
+        'category':    d.get('category', ''),
+        'loai':        d.get('category', ''),
+        'description': d.get('description', ''),
+        'mo_ta':       d.get('description', ''),
+        'stock':       d.get('stock', 0),
+        'icon':        d.get('icon', '📦'),
+        'image':       d.get('image', ''),
+        'anh_url':     d.get('image', ''),
+        'created_at':  str(d.get('created_at', '')),
+    }
+
 
 def init_db():
     with get_db() as conn:
@@ -787,9 +815,8 @@ def uploads(filename):
     return send_from_directory(UPLOAD_DIR, filename)
 
 
-IMAGES_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'images')
+IMAGES_DIR = os.environ.get('IMAGES_DIR', IMAGES_DIR_DEFAULT)
 os.makedirs(IMAGES_DIR, exist_ok=True)
-ALLOWED_EXT = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
 
 @app.route('/images/<path:filename>')
 def serve_image(filename):
@@ -812,6 +839,31 @@ def api_upload():
     return jsonify({'url': url, 'filename': fname, 'full_url': f'https://electroshop-pi5.electroshop-tho.workers.dev{url}'})
 
 
+@app.route('/api/product')
+def api_product():
+    """Get a single product by id — used by api.js fetchProduct() on Vercel."""
+    pid = request.args.get('id', '').strip()
+    if not pid:
+        return jsonify({'error': 'Thiếu id'}), 400
+
+    # 1) Try PocketBase first
+    items = fetch_from_pocketbase()
+    item = next((p for p in items if str(p['id']) == str(pid)), None)
+    if item:
+        return jsonify(item)
+
+    # 2) Fallback: SQLite
+    try:
+        with get_db() as conn:
+            row = conn.execute("SELECT * FROM products WHERE id = ?", (int(pid),)).fetchone()
+            if row:
+                return jsonify(normalize_product(row))
+    except Exception as e:
+        print(f'[SQLite/product] {e}')
+
+    return jsonify({'error': 'Không tìm thấy sản phẩm'}), 404
+
+
 @app.route('/api/products', methods=['GET', 'POST'])
 def api_products():
     if request.method == 'POST':
@@ -820,24 +872,45 @@ def api_products():
         price = d.get('price')
         if not name or not price:
             return jsonify({'error': 'Thiếu name hoặc price'}), 400
-        
+
+        # 1) Try PocketBase
         result = add_to_pocketbase({
-            'name': name,
-            'price': price,
+            'name': name, 'price': price,
             'description': d.get('description', ''),
             'category': d.get('category', ''),
             'stock': d.get('stock', 0),
             'icon': d.get('icon', '📦'),
         })
-        
         if result:
             return jsonify(result), 201
-        else:
-            return jsonify({'error': 'Không thể thêm sản phẩm vào PocketBase'}), 500
-    
-    # GET: Fetch from PocketBase
+
+        # 2) Fallback: SQLite
+        try:
+            with get_db() as c:
+                c.execute(
+                    'INSERT INTO products(name,price,category,description,stock,icon) VALUES(?,?,?,?,?,?)',
+                    (name, str(price), d.get('category', ''), d.get('description', ''),
+                     int(d.get('stock', 0)), d.get('icon', '📦'))
+                )
+                c.commit()
+                row = c.execute("SELECT * FROM products WHERE rowid = last_insert_rowid()").fetchone()
+                return jsonify(normalize_product(row)), 201
+        except Exception as e:
+            print(f'[SQLite/insert] {e}')
+            return jsonify({'error': 'Không thể thêm sản phẩm'}), 500
+
+    # GET: Try PocketBase first, fallback to SQLite
     products = fetch_from_pocketbase()
-    return jsonify(products)
+    if products:
+        return jsonify(products)
+
+    try:
+        with get_db() as conn:
+            rows = conn.execute("SELECT * FROM products ORDER BY created_at DESC").fetchall()
+            return jsonify([normalize_product(r) for r in rows])
+    except Exception as e:
+        print(f'[SQLite/list] {e}')
+        return jsonify([]), 200
 
 
 @app.route('/news')
@@ -1015,3 +1088,6 @@ def api_orders():
 if __name__ == '__main__':
     init_db()
     app.run(host='0.0.0.0', port=8888, debug=False)
+else:
+    # Vercel serverless: init on cold start
+    init_db()
