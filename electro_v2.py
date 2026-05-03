@@ -724,19 +724,48 @@ PAGE_NEWS_ADD = (
 
 # ── Routes ────────────────────────────────────────────────────────────────────
 
+_ROOT = os.path.dirname(os.path.abspath(__file__))
+
+# ─── Serve root-level static files (index.html, news.html, cart.js, api.js…) ─
+
 @app.route('/')
 def index():
+    """Serve the SPA index.html if present, else fall back to Jinja template."""
+    html = os.path.join(_ROOT, 'index.html')
+    if os.path.exists(html):
+        return send_from_directory(_ROOT, 'index.html')
+    # Fallback: Jinja template (admin/Pi local view)
     items = fetch_from_pocketbase()
+    if not items:
+        try:
+            with get_db() as conn:
+                rows = conn.execute("SELECT * FROM products ORDER BY created_at DESC").fetchall()
+                items = [normalize_product(r) for r in rows]
+        except Exception:
+            items = []
     return render_template_string(PAGE_INDEX, items=items, active_tab='shop')
 
 
 @app.route('/chitiet')
 def chitiet():
-    pid = request.args.get('id', '')
+    pid = request.args.get('id', '').strip()
     if not pid:
         abort(404)
+
+    # 1) Try PocketBase
     items = fetch_from_pocketbase()
-    item = next((p for p in items if p['id'] == pid), None)
+    item = next((p for p in items if str(p['id']) == str(pid)), None)
+
+    # 2) Fallback SQLite
+    if not item:
+        try:
+            with get_db() as conn:
+                row = conn.execute("SELECT * FROM products WHERE id = ?", (int(pid),)).fetchone()
+                if row:
+                    item = normalize_product(row)
+        except Exception as e:
+            print(f'[chitiet/SQLite] {e}')
+
     if not item:
         abort(404)
     return render_template_string(PAGE_CHITIET, item=item, active_tab='shop')
@@ -1084,6 +1113,20 @@ def api_orders():
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
+
+
+# ── Catch-all: serve any static file from project root (last resort) ──────────
+# Must be registered AFTER all other routes to avoid shadowing them.
+
+@app.route('/<path:filename>')
+def serve_root_file(filename):
+    """Serves index.html, news.html, cart.js, api.js, chitiet.html, etc.
+    from the project root directory."""
+    filepath = os.path.join(_ROOT, filename)
+    if os.path.isfile(filepath):
+        return send_from_directory(_ROOT, filename)
+    abort(404)
+
 
 if __name__ == '__main__':
     init_db()

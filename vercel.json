@@ -1,17 +1,9 @@
 {
+  "version": 2,
   "builds": [
     { "src": "electro_v2.py", "use": "@vercel/python" }
   ],
   "routes": [
-    { "src": "/api/(.*)",     "dest": "electro_v2.py" },
-    { "src": "/webhook/(.*)", "dest": "electro_v2.py" },
-    { "src": "/uploads/(.*)", "dest": "electro_v2.py" },
-    { "src": "/images/(.*)",  "dest": "electro_v2.py" },
-    { "src": "/health",       "dest": "electro_v2.py" },
-    { "src": "/chitiet(.*)",  "dest": "electro_v2.py" },
-    { "src": "/add(.*)",      "dest": "electro_v2.py" },
-    { "src": "/edit(.*)",     "dest": "electro_v2.py" },
-    { "src": "/news(.*)",     "dest": "electro_v2.py" },
-    { "src": "/(.*)",         "dest": "/$1" }
+    { "src": "/(.*)", "dest": "electro_v2.py" }
   ]
 }
