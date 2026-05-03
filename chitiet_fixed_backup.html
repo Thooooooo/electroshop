@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<<htmlhtml lang="vi" data-theme="light">
+<<headhead>
+  <<metameta charset="UTF-8" />
+  <<metameta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <<titletitle>Chi tiết sản phẩm – ElectroShop</title>
+  <<linklink href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600;700;800&display=swap" rel="stylesheet"/>
+  <<stylestyle>
+    :root {
+      --primary: #6c3bff; --primary2: #8b5cf6; --accent: #ff6b35;
+      --bg: #f8f7ff; --white: #fff; --dark: #1a1040;
+      --text: #2d2d2d; --muted: #6b7280; --border: #e5e7eb;
+      --radius: 16px; --shadow: 0 10px 30px rgba(108,59,255,0.15);
+    }
+    [data-theme="dark"] {
+      --bg: #0f172a; --white: #1e293b; --text: #f1f5f9;
+      --muted: #94a3b8; --border: #334155;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Be Vietnam Pro', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    header {
+      position: sticky; top: 0; z-index: 100;
+      background: linear-gradient(135deg, #1a1040 0%, #2d1b69 55%, #1e3a8a 100%);
+      border-bottom: 1px solid rgba(139,92,246,0.3);
+      box-shadow: 0 2px 20px rgba(109,40,217,0.35);
+    }
+    .header-inner {
+      max-width: 1280px; margin: 0 auto; display: flex; align-items: center;
+      justify-content: space-between; padding: 0 24px; height: 64px;
+    }
+    .logo { display: flex; align-items: center; gap: 9px; font-size: 1.2rem; font-weight: 800; color: #e0d7ff; cursor: pointer; text-decoration: none; }
+    .logo-box { width: 34px; height: 34px; background: linear-gradient(135deg, var(--primary), #00d4aa); border-radius: 9px; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 12px rgba(108,59,255,0.5); }
+
+    .nav-links { display: flex; gap: 16px; list-style: none; }
+    .nav-links a { padding: 6px 13px; border-radius: 8px; color: rgba(224,215,255,0.75); font-size: 0.87rem; font-weight: 600; text-decoration: none; transition: all .2s; }
+    .nav-links a:hover { background: rgba(139,92,246,0.25); color: #fff; }
+
+    main { max-width: 1100px; margin: 40px auto; padding: 0 24px; }
+    .product-container {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 48px;
+      background: var(--white); border-radius: var(--radius); padding: 32px;
+      box-shadow: var(--shadow); border: 1px solid var(--border);
+    }
+    @media (max-width: 768px) { .product-container { grid-template-columns: 1fr; } }
+
+    .product-image-box {
+      background: var(--bg); border-radius: var(--radius);
+      display: flex; align-items: center; justify-content: center;
+      padding: 20px; border: 1px solid var(--border);
+    }
+    .product-image { width: 100%; height: auto; max-height: 450px; object-fit: contain; border-radius: 12px; }
+
+    .product-info { display: flex; flex-direction: column; gap: 20px; }
+    .product-category { color: var(--primary); font-weight: 700; font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
+    .product-title { font-size: 2.2rem; font-weight: 800; line-height: 1.2; color: var(--text); }
+    .product-price { font-size: 1.8rem; font-weight: 800; color: var(--primary); }
+    .product-desc { font-size: 1rem; line-height: 1.6; color: var(--muted); }
+
+    .actions-box { display: flex; align-items: center; gap: 16px; margin-top: 20px; }
+    .btn-add-cart {
+      background: linear-gradient(135deg, var(--primary), var(--primary2));
+      color: #fff; padding: 16px 32px; border-radius: 12px;
+      font-size: 1rem; font-weight: 700; border: none; cursor: pointer;
+      transition: all .3s cubic-bezier(.4,0,.2,1); box-shadow: 0 4px 15px rgba(108,59,255,0.3);
+    }
+    .btn-add-cart:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(108,59,255,0.4); opacity: 0.9; }
+    .btn-add-cart:active { transform: translateY(0); }
+
+    .loading-overlay {
+      position: fixed; inset: 0; background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1000; font-weight: 600; color: var(--primary);
+    }
+  </style>
+</head>
+<body>
+
+<<headerheader>
+  <<divdiv class="header-inner">
+    <<aa href="index.html" class="logo">
+      <<divdiv class="logo-box">⚡</div>
+      ElectroShop
+    </a>
+    <<navnav>
+      <<ulul class="nav-links">
+        <li><<aa href="index.html">Trang chủ</a></li>
+        <li><<aa href="news.html">📰 Báo</a></li>
+        <li><<aa href="cart.html" class="cart-link">🛒 Giỏ hàng</a></li>
+      </ul>
+    </nav>
+    <<buttonbutton id="themeToggle" style="background:none; border:1px solid rgba(224,215,255,0.3); color:#fff; border-radius:50%; width:34px; height:34px; cursor:pointer;">🌙</button>
+  </div>
+</header>
+
+<<divdiv id="loader" class="loading-overlay">Đang tải sản phẩm...</div>
+
+<<mainmain>
+  <<divdiv class="product-container" id="productContent" style="display:none;">
+    <<divdiv class="product-image-box">
+      <<imgimg src="" id="prodImg" class="product-image" alt="Sản phẩm">
+    </div>
+    <<divdiv class="product-info">
+      <<spanspan class="product-category" id="prodCat">Linh kiện</span>
+      <<hh1 class="product-title" id="prodTitle">Tên sản phẩm</h1>
+      <<divdiv class="product-price" id="prodPrice">0₫</div>
+      <<pp class="product-desc" id="prodDesc">Mô tả sản phẩm sẽ hiển thị ở đây...</p>
+
+      <<divdiv class="actions-box">
+        <<buttonbutton class="btn-add-cart" onclick="handleAddToCart()">🛒 Thêm vào giỏ hàng</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<<scriptscript src="cart.js"></script>
+<<scriptscript>
+  let currentProduct = null;
+
+  // Theme handling
+  const savedTheme = localStorage.getItem('es-theme') || 'light';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+  document.getElementById('themeToggle').textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+
+  document.getElementById('themeToggle').onclick = () => {
+    const current = document.documentElement.getAttribute('data-theme');
+    const next = current === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', next);
+    localStorage.setItem('es-theme', next);
+    document.getElementById('themeToggle').textContent = next === 'dark' ? '☀️' : '🌙';
+  };
+
+  async function loadProduct() {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+
+    if (!id) {
+      document.getElementById('loader').textContent = "Không tìm thấy ID sản phẩm!";
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/product?id=${id}`);
+      if (!res.ok) throw new Error('Không thể tải dữ liệu sản phẩm');
+
+      currentProduct = await res.json();
+
+      // Update UI
+      document.getElementById('prodTitle').textContent = currentProduct.name || currentProduct.ten;
+      document.getElementById('prodPrice').textContent = fmtPrice(currentProduct.price || currentProduct.gia);
+      document.getElementById('prodDesc').textContent = currentProduct.mota || currentProduct.mo_ta || 'Không có mô tả';
+      document.getElementById('prodCat').textContent = currentProduct.loai || 'Điện tử';
+
+      const imgEl = document.getElementById('prodImg');
+      imgEl.src = currentProduct.anh_url || 'https://via.placeholder.com/400';
+
+      document.getElementById('loader').style.display = 'none';
+      document.getElementById('productContent').style.display = 'grid';
+    } catch (err) {
+      document.getElementById('loader').textContent = "Lỗi: " + err.message;
+    }
+  }
+
+  function fmtPrice(p) {
+    const num = typeof p === 'number' ? p : parseFloat(String(p).replace(/[^\d.]/g, '')) || 0;
+    return num.toLocaleString('vi-VN') + '₫';
+  }
+
+  function handleAddToCart() {
+    if (!currentProduct) return;
+
+    // Mapping data to cartAdd format
+    cartAdd({
+      id: currentProduct.id,
+      name: currentProduct.name || currentProduct.ten,
+      price: currentProduct.price || currentProduct.gia,
+      icon: currentProduct.icon || '📦'
+    });
+  }
+
+  window.onload = loadProduct;
+</script>
+</body>
+</html>

@@ -4,10 +4,16 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.utils import secure_filename
 import sqlite3, os, uuid, time, threading
 from urllib.parse import quote
+import requests
+import json
 
 app = Flask(__name__)
 CORS(app)
 app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
+# ── PocketBase Configuration ──────────────────────────────────────────────────
+POCKETBASE_URL = 'http://localhost:8090'
+POCKETBASE_SANPHAM_COLLECTION = 'sanpham'
 
 @app.after_request
 def add_cors(response):
@@ -15,6 +21,86 @@ def add_cors(response):
     response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
     return response
+
+# ── PocketBase Helpers ────────────────────────────────────────────────────────
+
+def fetch_from_pocketbase():
+    """Fetch all products from PocketBase sanpham collection"""
+    try:
+        url = f'{POCKETBASE_URL}/api/collections/{POCKETBASE_SANPHAM_COLLECTION}/records?perPage=200'
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+        items = data.get('items', [])
+        # Normalize PocketBase fields to SQLite field names
+        normalized = []
+        for item in items:
+            # Handle image/anh field safely
+            image_name = ''
+            anh_list = item.get('anh', [])
+            if isinstance(anh_list, list) and len(anh_list) > 0:
+                image_name = anh_list[0]
+            elif not anh_list and item.get('image'):
+                image_name = item.get('image', '')
+            
+            normalized.append({
+                'id': item.get('id', ''),
+                'name': item.get('ten', item.get('name', '')),
+                'ten': item.get('ten', item.get('name', '')),
+                'price': str(item.get('gia', item.get('price', 0))),
+                'gia': item.get('gia', item.get('price', 0)),
+                'category': item.get('loai', item.get('category', '')),
+                'loai': item.get('loai', item.get('category', '')),
+                'description': item.get('mo_ta', item.get('description', '')),
+                'mo_ta': item.get('mo_ta', item.get('description', '')),
+                'stock': item.get('stock', 0),
+                'icon': item.get('icon', '📦'),
+                'image': image_name,
+                'created_at': item.get('created', item.get('created_at', '')),
+                'collectionId': item.get('collectionId', ''),
+            })
+        return normalized
+    except Exception as e:
+        print(f'[PocketBase] Error fetching products: {e}')
+        return []
+
+def add_to_pocketbase(data):
+    """Add product to PocketBase"""
+    def parse_price(price_input):
+        """Convert price string to integer (handles VN format: 1.999.999 or 99,99)"""
+        try:
+            s = str(price_input).strip()
+            # Remove currency symbols
+            s = s.replace('₫', '').replace('VND', '').strip()
+            
+            # Detect format: if has comma, it's decimal; dots are thousands separators
+            if ',' in s:
+                # Format: "1.234,56" → remove dots, replace comma with dot
+                s = s.replace('.', '').replace(',', '.')
+                return int(float(s))
+            else:
+                # Format: "1234567" or "1.234.567" → remove dots (thousands separator)
+                s = s.replace('.', '')
+                return int(float(s))
+        except:
+            return 0
+    
+    try:
+        url = f'{POCKETBASE_URL}/api/collections/{POCKETBASE_SANPHAM_COLLECTION}/records'
+        payload = {
+            'ten': data.get('name', ''),
+            'gia': parse_price(data.get('price', 0)),
+            'loai': data.get('category', ''),
+            'mo_ta': data.get('description', ''),
+            'stock': int(data.get('stock', 0)),
+            'icon': data.get('icon', '📦'),
+        }
+        response = requests.post(url, json=payload, timeout=5)
+        response.raise_for_status()
+        return response.json()
+    except Exception as e:
+        print(f'[PocketBase] Error adding product: {e}')
+        return None
 
 DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'v2.db')
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'uploads')
@@ -612,18 +698,17 @@ PAGE_NEWS_ADD = (
 
 @app.route('/')
 def index():
-    with get_db() as c:
-        items = c.execute('SELECT * FROM products ORDER BY created_at DESC').fetchall()
+    items = fetch_from_pocketbase()
     return render_template_string(PAGE_INDEX, items=items, active_tab='shop')
 
 
 @app.route('/chitiet')
 def chitiet():
-    pid = request.args.get('id', type=int)
+    pid = request.args.get('id', '')
     if not pid:
         abort(404)
-    with get_db() as c:
-        item = c.execute('SELECT * FROM products WHERE id=?', (pid,)).fetchone()
+    items = fetch_from_pocketbase()
+    item = next((p for p in items if p['id'] == pid), None)
     if not item:
         abort(404)
     return render_template_string(PAGE_CHITIET, item=item, active_tab='shop')
@@ -732,20 +817,27 @@ def api_products():
     if request.method == 'POST':
         d = request.get_json(silent=True) or {}
         name  = (d.get('name') or '').strip()
-        price = int(d.get('price') or 0)
+        price = d.get('price')
         if not name or not price:
             return jsonify({'error': 'Thiếu name hoặc price'}), 400
-        with get_db() as c:
-            cur = c.execute(
-                'INSERT INTO products(name, price, description, stock, anh_url) VALUES(?,?,?,?,?)',
-                (name, str(price), d.get('description',''), int(d.get('stock',0)), d.get('image_url',''))
-            )
-            c.commit()
-            new_id = cur.lastrowid
-        return jsonify({'id': new_id, 'name': name, 'price': price}), 201
-    with get_db() as c:
-        rows = c.execute('SELECT * FROM products ORDER BY created_at DESC').fetchall()
-    return jsonify([dict(r) for r in rows])
+        
+        result = add_to_pocketbase({
+            'name': name,
+            'price': price,
+            'description': d.get('description', ''),
+            'category': d.get('category', ''),
+            'stock': d.get('stock', 0),
+            'icon': d.get('icon', '📦'),
+        })
+        
+        if result:
+            return jsonify(result), 201
+        else:
+            return jsonify({'error': 'Không thể thêm sản phẩm vào PocketBase'}), 500
+    
+    # GET: Fetch from PocketBase
+    products = fetch_from_pocketbase()
+    return jsonify(products)
 
 
 @app.route('/news')

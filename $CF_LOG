@@ -1,0 +1,29 @@
+{"level":"info","time":"2026-05-02T23:03:45Z","message":"Thank you for trying Cloudflare Tunnel. Doing so, without a Cloudflare account, is a quick way to experiment and try it out. However, be aware that these account-less Tunnels have no uptime guarantee, are subject to the Cloudflare Online Services Terms of Use (https://www.cloudflare.com/website-terms/), and Cloudflare reserves the right to investigate your use of Tunnels for violations of such terms. If you intend to use Tunnels in production you should use a pre-created named tunnel by following: https://developers.cloudflare.com/cloudflare-one/connections/connect-apps"}
+{"level":"info","time":"2026-05-02T23:03:45Z","message":"Requesting new quick Tunnel on trycloudflare.com..."}
+{"level":"info","time":"2026-05-02T23:03:48Z","message":"+--------------------------------------------------------------------------------------------+"}
+{"level":"info","time":"2026-05-02T23:03:48Z","message":"|  Your quick Tunnel has been created! Visit it at (it may take some time to be reachable):  |"}
+{"level":"info","time":"2026-05-02T23:03:48Z","message":"|  https://businesses-differences-intellectual-res.trycloudflare.com                         |"}
+{"level":"info","time":"2026-05-02T23:03:48Z","message":"+--------------------------------------------------------------------------------------------+"}
+{"level":"info","time":"2026-05-02T23:03:48Z","message":"Cannot determine default configuration path. No file [config.yml config.yaml] in [~/.cloudflared ~/.cloudflare-warp ~/cloudflare-warp /etc/cloudflared /usr/local/etc/cloudflared]"}
+{"level":"info","time":"2026-05-02T23:03:48Z","message":"Version 2026.3.0 (Checksum 0755ba4cbab59980e6148367fcf53a8f3ec85a97deefd63c2420cf7850769bee)"}
+{"level":"info","time":"2026-05-02T23:03:48Z","message":"GOOS: linux, GOVersion: go1.24.13, GoArch: arm64"}
+{"level":"info","time":"2026-05-02T23:03:48Z","message":"Settings: map[ha-connections:1 logfile:$CF_LOG protocol:quic url:http://localhost:8888]"}
+{"level":"info","time":"2026-05-02T23:03:48Z","message":"cloudflared will not automatically update if installed by a package manager."}
+{"level":"info","time":"2026-05-02T23:03:48Z","message":"Generated Connector ID: fb7cabde-c87f-4f07-95ee-44b3f3acce14"}
+{"level":"info","time":"2026-05-02T23:03:48Z","message":"Initial protocol quic"}
+{"level":"info","time":"2026-05-02T23:03:48Z","message":"ICMP proxy will use 192.168.1.2 as source for IPv4"}
+{"level":"info","time":"2026-05-02T23:03:48Z","message":"ICMP proxy will use 2001:ee0:50d7:28c0:8c27:78f4:e549:6ea0 in zone wlan0 as source for IPv6"}
+{"level":"info","time":"2026-05-02T23:03:48Z","message":"ICMP proxy will use 192.168.1.2 as source for IPv4"}
+{"level":"info","time":"2026-05-02T23:03:48Z","message":"ICMP proxy will use 2001:ee0:50d7:28c0:8c27:78f4:e549:6ea0 in zone wlan0 as source for IPv6"}
+{"level":"info","time":"2026-05-02T23:03:48Z","message":"Starting metrics server on 127.0.0.1:20241/metrics"}
+{"level":"info","event":0,"ip":"198.41.200.53","connIndex":0,"time":"2026-05-02T23:03:48Z","message":"Tunnel connection curve preferences: [X25519MLKEM768 CurveP256]"}
+{"level":"info","event":0,"connection":"0ce05929-a62d-496e-8372-84e5c1b83135","connIndex":0,"location":"hkg08","ip":"198.41.200.53","protocol":"quic","time":"2026-05-02T23:03:49Z","message":"Registered tunnel connection"}
+{"level":"info","time":"2026-05-02T23:06:09Z","message":"Initiating graceful shutdown due to signal terminated ..."}
+{"level":"error","event":0,"ip":"198.41.200.53","connIndex":0,"error":"context canceled","time":"2026-05-02T23:06:09Z","message":"failed to run the datagram handler"}
+{"level":"error","event":0,"ip":"198.41.200.53","connIndex":0,"error":"accept stream listener encountered a failure while serving","time":"2026-05-02T23:06:09Z","message":"failed to serve tunnel connection"}
+{"level":"error","event":0,"ip":"198.41.200.53","connIndex":0,"error":"accept stream listener encountered a failure while serving","time":"2026-05-02T23:06:09Z","message":"Serve tunnel error"}
+{"level":"info","event":0,"ip":"198.41.200.53","connIndex":0,"time":"2026-05-02T23:06:09Z","message":"Retrying connection in up to 1s"}
+{"level":"error","connIndex":0,"time":"2026-05-02T23:06:09Z","message":"Connection terminated"}
+{"level":"error","time":"2026-05-02T23:06:09Z","message":"no more connections active and exiting"}
+{"level":"info","time":"2026-05-02T23:06:09Z","message":"Tunnel server stopped"}
+{"level":"info","time":"2026-05-02T23:06:09Z","message":"Metrics server stopped"}
